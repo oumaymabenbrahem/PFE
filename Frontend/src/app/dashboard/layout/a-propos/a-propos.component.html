@@ -1,0 +1,96 @@
+<section class="about-page">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <div class="container about-shell">
+    <section class="hero-card">
+      <div class="hero-badge">A propos de Test2i</div>
+      <h1>Automatiser mieux, livrer plus vite.</h1>
+      <p>
+  Test2i transforme vos specifications en scénarios de test robustes.<br>
+  <strong>Notre objectif :</strong> accelerer la qualite logicielle grace a une automatisation
+  intelligente, fiable et adaptee a votre cycle de developpement.
+</p>
+      <div class="hero-actions">
+        <a class="btn-primary" routerLink="/upload-projet">Générer mes tests</a>
+        <a class="btn-ghost" routerLink="/projects">Voir mes projets</a>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card" *ngFor="let stat of stats">
+        <span class="stat-value">{{ stat.value }}</span>
+        <span class="stat-label">{{ stat.label }}</span>
+      </article>
+    </section>
+
+    <section class="mission-card">
+      <h2>Notre mission</h2>
+      <p>
+        Rendre le test logiciel accessible, intelligent et operationnel pour chaque equipe.
+        Avec Test2i, les user stories deviennent des scripts executes automatiquement,
+        avec des rapports clairs qui accelerent vos decisions produit.
+      </p>
+    </section>
+
+    <section class="values-section">
+      <h2>Nos valeurs</h2>
+      <div class="values-grid">
+        <article class="value-card" *ngFor="let value of values">
+          <div class="value-icon">
+            <i class="bi" [ngClass]="value.icon"></i>
+          </div>
+          <h3>{{ value.title }}</h3>
+          <p>{{ value.description }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="timeline-section">
+      <h2>Notre histoire</h2>
+      <div class="timeline">
+        <article class="timeline-item" *ngFor="let item of timeline">
+          <span class="timeline-year">{{ item.year }}</span>
+          <div class="timeline-content">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.description }}</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="testimonials-section">
+      <h2>Ils utilisent Test2i</h2>
+      <div class="testimonials-grid">
+        <article class="testimonial-card" *ngFor="let testimony of testimonials">
+          <p class="quote">"{{ testimony.quote }}"</p>
+          <div class="author">{{ testimony.name }}</div>
+          <div class="role">{{ testimony.role }}</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="faq-section">
+      <h2>FAQ</h2>
+      <div class="faq-list">
+        <article class="faq-item" *ngFor="let faq of faqs; let i = index" [class.open]="faq.open">
+          <button class="faq-question" type="button" (click)="toggleFaq(i)">
+            <span>{{ faq.question }}</span>
+            <i class="bi" [ngClass]="faq.open ? 'bi-dash-lg' : 'bi-plus-lg'"></i>
+          </button>
+          <div class="faq-answer" *ngIf="faq.open">
+            {{ faq.answer }}
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="cta-banner">
+      <div>
+        <h2>Pret a accelerer votre strategie de test ?</h2>
+        <p>Créez un projet et lancez votre premiere generation en quelques clics.</p>
+      </div>
+      <a class="btn-primary" routerLink="/upload-projet">Commencer maintenant</a>
+    </section>
+  </div>
+</section>

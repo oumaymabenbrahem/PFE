@@ -1,0 +1,249 @@
+<div class="test-generation-container">
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a routerLink="/" class="breadcrumb-link">
+          <i class="bi bi-house-door"></i> Accueil
+        </a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">Génération de tests</li>
+    </ol>
+  </nav>
+
+  <!-- Header Section -->
+  <div class="header-section">
+    <div class="title-container">
+      <h1 class="main-title">
+        <i class="bi bi-robot"></i>
+        Automatiser mieux, livrer plus vite...
+      </h1>
+      <p class="subtitle">
+        Uploadez votre code et spécifications pour générer automatiquement vos scripts de tests
+      </p>
+    </div>
+
+    <button
+      class="new-project-btn"
+      (click)="toggleForm()"
+      [class.expanded]="showForm">
+      <i class="bi bi-plus-circle-fill"></i>
+      Nouveau projet
+      <i class="bi bi-chevron-down expand-icon" [class.rotated]="showForm"></i>
+    </button>
+  </div>
+
+  <!-- Project Form -->
+  <div class="form-container" [class.show]="showForm">
+    <!-- Messages d'erreur et de succès -->
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="bi bi-check-circle"></i>
+      {{ successMessage }}
+      <button type="button" class="btn-close" (click)="successMessage = ''"></button>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="bi bi-exclamation-circle"></i>
+      {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
+    </div>
+
+    <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="project-form">
+
+      <!-- Project Name -->
+      <div class="form-group">
+        <label for="nomProjet" class="form-label">
+          <i class="bi bi-tag"></i> Nom du projet *
+        </label>
+        <input
+          type="text"
+          id="nomProjet"
+          formControlName="nomProjet"
+          class="form-control"
+          placeholder="Entrez le nom de votre projet"
+          [class.error]="projectForm.get('nomProjet')?.invalid && projectForm.get('nomProjet')?.touched">
+        <div class="error-message" *ngIf="projectForm.get('nomProjet')?.invalid && projectForm.get('nomProjet')?.touched">
+          {{ getErrorMessage('nomProjet') }}
+        </div>
+      </div>
+
+      <!-- User Story -->
+      <div class="form-group">
+        <label for="specificationType" class="form-label">
+          <i class="bi bi-list-check"></i> Type de spécification *
+        </label>
+        <select
+          id="specificationType"
+          formControlName="specificationType"
+          class="form-select"
+          (change)="onSpecificationTypeChange()">
+          <option value="USER_STORY">📝 User Story</option>
+          <option value="LIEN_GIT">🔗 Lien GitHub</option>
+          <option value="CODE_FICHIER">📦 Fichier du projet</option>
+          <option value="LIEN_APPLICATION">🔗 Lien Application</option>
+        </select>
+      </div>
+
+      <!-- Champ User Story -->
+      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'USER_STORY'">
+        <label for="userStory" class="form-label">
+          <i class="bi bi-book"></i> User Story *
+        </label>
+        <textarea
+          id="userStory"
+          formControlName="userStory"
+          class="form-control textarea"
+          placeholder="Décrivez vos user stories (histoires utilisateur)..."
+          rows="5"
+          [class.error]="projectForm.get('userStory')?.invalid && projectForm.get('userStory')?.touched">
+        </textarea>
+        <div class="error-message" *ngIf="projectForm.get('userStory')?.invalid && projectForm.get('userStory')?.touched">
+          {{ getErrorMessage('userStory') }}
+        </div>
+      </div>
+
+      <!-- Champ URL GitHub -->
+      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'LIEN_GIT'">
+        <label for="urlGithub" class="form-label">
+          <i class="bi bi-github"></i> URL GitHub *
+        </label>
+        <input
+          type="url"
+          id="urlGithub"
+          formControlName="urlGithub"
+          class="form-control"
+          placeholder="https://github.com/username/repository"
+          [class.error]="projectForm.get('urlGithub')?.invalid && projectForm.get('urlGithub')?.touched">
+        <div class="error-message" *ngIf="projectForm.get('urlGithub')?.invalid && projectForm.get('urlGithub')?.touched">
+          {{ getErrorMessage('urlGithub') }}
+        </div>
+        <small class="text-muted d-block mt-2">
+          <i class="bi bi-info-circle"></i> Lien vers votre repository GitHub
+        </small>
+      </div>
+
+      <!-- Champ URL Application -->
+      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'LIEN_APPLICATION'">
+        <label for="urlApplication" class="form-label">
+          <i class="bi bi-link-45deg"></i> URL de l'Application *
+        </label>
+        <input
+          type="url"
+          id="urlApplication"
+          formControlName="urlApplication"
+          class="form-control"
+          placeholder="https://example.com"
+          [class.error]="projectForm.get('urlApplication')?.invalid && projectForm.get('urlApplication')?.touched">
+        <div class="error-message" *ngIf="projectForm.get('urlApplication')?.invalid && projectForm.get('urlApplication')?.touched">
+          {{ getErrorMessage('urlApplication') }}
+        </div>
+        <small class="text-muted d-block mt-2">
+          <i class="bi bi-info-circle"></i> Lien vers l'application web à tester
+        </small>
+      </div>
+
+      <!-- Champ Focus Optionnel (Seulement pour LIEN_APPLICATION) -->
+      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'LIEN_APPLICATION'">
+        <label for="focusOptionnel" class="form-label">
+          <i class="bi bi-bullseye"></i> Focus / Objectif du test (Optionnel)
+        </label>
+        <input
+          type="text"
+          id="focusOptionnel"
+          formControlName="focusOptionnel"
+          class="form-control"
+          placeholder='Ex: "Je veux tester le module paiement"'
+          [class.error]="projectForm.get('focusOptionnel')?.invalid && projectForm.get('focusOptionnel')?.touched">
+        <small class="text-muted d-block mt-2">
+          <i class="bi bi-info-circle"></i> Indiquez si vous souhaitez que l'IA se concentre sur une partie spécifique de l'application
+        </small>
+      </div>
+
+      <!-- File Upload Section (CODE_FICHIER) -->
+      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'CODE_FICHIER'">
+        <label class="form-label">
+          <i class="bi bi-file-earmark"></i> Fichiers du projet *
+        </label>
+        <small class="text-muted d-block mb-2">
+          <i class="bi bi-info-circle"></i> Accepte: archives, code source, configuration, documentation, etc.
+        </small>
+
+        <!-- Drag & Drop Area -->
+        <div
+          class="upload-area"
+          [class.drag-over]="isDragOver"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)">
+
+          <div class="upload-content">
+            <i class="bi bi-cloud-upload upload-icon"></i>
+            <p class="upload-text">
+              Glissez-déposez vos fichiers ici
+            </p>
+            <p class="upload-subtext">ou</p>
+
+            <!-- File Input -->
+            <label for="fileInput" class="browse-btn">
+              <i class="bi bi-folder2-open"></i>
+              Parcourir
+            </label>
+            <input
+              type="file"
+              id="fileInput"
+              (change)="onFileSelected($event)"
+              accept=".zip,.rar,.7z,.tar,.gz,.java,.py,.js,.ts,.html,.css,.json,.xml,.yaml,.yml,.sql,.txt,.md,.jar,.war,.gradle,.py,.c,.cpp,.cs,.go,.rb,.php,.swift,.kt,.rs,.sh,.bash"
+              multiple
+              style="display: none;">
+          </div>
+        </div>
+
+        <!-- Selected Files -->
+        <div class="selected-files" *ngIf="selectedFiles.length > 0">
+          <h6 class="files-title">Fichiers sélectionnés:</h6>
+          <div class="file-item" *ngFor="let file of selectedFiles; let i = index">
+            <div class="file-info">
+              <i class="bi bi-file-earmark file-icon"></i>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ (file.size / 1024 / 1024).toFixed(2) }} MB)</span>
+            </div>
+            <button type="button" class="remove-file-btn" (click)="removeFile(i)">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="form-actions">
+        <button
+          type="submit"
+          class="submit-btn"
+          [disabled]="projectForm.invalid || isLoading">
+          <span *ngIf="!isLoading">Créer le projet</span>
+          <span *ngIf="isLoading">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Création en cours...
+          </span>
+        </button>
+        <button
+          type="button"
+          class="cancel-btn"
+          (click)="cancel()"
+          [disabled]="isLoading">
+          Annuler
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!showForm">
+    <div class="empty-content">
+      <i class="bi bi-lightbulb empty-icon"></i>
+      <h3>Prêt à commencer ?</h3>
+      <p>Créez votre premier projet de génération automatique de tests</p>
+    </div>
+  </div>
+</div>
+

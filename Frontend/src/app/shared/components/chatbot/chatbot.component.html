@@ -1,0 +1,73 @@
+<div class="chatbot-container">
+  <!-- The Chat Window -->
+  <div class="chat-window" [ngClass]="{ 'open': isChatOpen }">
+    <div class="chat-header">
+      <div class="header-info">
+        <svg class="bot-avatar-header" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#3747eb">
+            <!-- Head shape with speech bubble tail -->
+            <path d="M100,10 C44.8,10 0,45.8 0,100 C0,123.6 10.4,145.2 27.2,161.4 L18,188 L46.4,176.4 C62.4,185.4 80.6,190 100,190 C155.2,190 200,154.2 200,100 C200,45.8 155.2,10 100,10 Z"/>
+            <!-- White face plate -->
+            <rect x="40" y="55" width="120" height="90" rx="30" fill="white"/>
+            <!-- Eyes -->
+            <path d="M60,95 Q70,80 80,95 Z" fill="#3747eb"/>
+            <path d="M120,95 Q130,80 140,95 Z" fill="#3747eb"/>
+            <!-- Smile -->
+            <path d="M90,110 Q100,125 110,110" fill="none" stroke="#3747eb" stroke-width="8" stroke-linecap="round"/>
+            <!-- Ears / Antennas -->
+            <rect x="18" y="70" width="15" height="50" rx="7" fill="#3747eb" stroke="white" stroke-width="3"/>
+            <rect x="167" y="70" width="15" height="50" rx="7" fill="#3747eb" stroke="white" stroke-width="3"/>
+            <rect x="23" y="45" width="6" height="35" rx="3" fill="#3747eb" stroke="white" stroke-width="2"/>
+            <rect x="171" y="45" width="6" height="35" rx="3" fill="#3747eb" stroke="white" stroke-width="2"/>
+          </g>
+        </svg>
+        <h3>Assistant Virtuel</h3>
+      </div>
+      <button class="close-btn" (click)="toggleChat()">&#10005;</button>
+    </div>
+    
+    <div class="chat-body" #scrollMe [scrollTop]="scrollMe.scrollHeight">
+      <div class="message" *ngFor="let msg of messages" [ngClass]="msg.sender">
+        <div class="message-text">
+          {{ msg.text }}
+        </div>
+      </div>
+    </div>
+    
+    <div class="chat-footer">
+      <input 
+        type="text" 
+        [(ngModel)]="userInput" 
+        (keyup.enter)="sendMessage()" 
+        placeholder="Écrivez votre message..." 
+      />
+      <button class="send-btn" (click)="sendMessage()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#0d6efd" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- The Floating Button -->
+  <button class="chatbot-btn" (click)="toggleChat()">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 75%; height: 75%;">
+      <g fill="#3747eb">
+        <!-- Head shape with speech bubble tail -->
+        <path d="M100,10 C44.8,10 0,45.8 0,100 C0,123.6 10.4,145.2 27.2,161.4 L18,188 L46.4,176.4 C62.4,185.4 80.6,190 100,190 C155.2,190 200,154.2 200,100 C200,45.8 155.2,10 100,10 Z"/>
+        <!-- White face plate -->
+        <rect x="40" y="55" width="120" height="90" rx="30" fill="white"/>
+        <!-- Eyes -->
+        <path d="M60,95 Q70,80 80,95 Z" fill="#3747eb"/>
+        <path d="M120,95 Q130,80 140,95 Z" fill="#3747eb"/>
+        <!-- Smile -->
+        <path d="M90,110 Q100,125 110,110" fill="none" stroke="#3747eb" stroke-width="8" stroke-linecap="round"/>
+        <!-- Ears / Antennas -->
+        <rect x="18" y="70" width="15" height="50" rx="7" fill="#3747eb" stroke="white" stroke-width="3"/>
+        <rect x="167" y="70" width="15" height="50" rx="7" fill="#3747eb" stroke="white" stroke-width="3"/>
+        <rect x="23" y="45" width="6" height="35" rx="3" fill="#3747eb" stroke="white" stroke-width="2"/>
+        <rect x="171" y="45" width="6" height="35" rx="3" fill="#3747eb" stroke="white" stroke-width="2"/>
+      </g>
+    </svg>
+  </button>
+</div>

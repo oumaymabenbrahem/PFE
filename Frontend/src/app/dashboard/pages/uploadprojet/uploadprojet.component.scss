@@ -1,0 +1,449 @@
+/* Colorful & Innovative Test Generation Design */
+.test-generation-container {
+  max-width: 1200px;
+  margin: 3rem auto 0;
+  padding: 2rem;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #1b5d93 0%);
+  min-height: 100vh;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.breadcrumb-nav .breadcrumb {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1rem;
+  margin-bottom: 2rem;
+  border-radius: 15px;
+}
+
+.breadcrumb-nav .breadcrumb .breadcrumb-item.active {
+  color: #fff;
+}
+
+.breadcrumb-nav .breadcrumb .breadcrumb-link {
+  color: #e8f4f8;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.breadcrumb-nav .breadcrumb .breadcrumb-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.header-section .title-container .main-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.header-section .title-container .main-title i {
+  margin-right: 0.5rem;
+  color: #ffd700;
+  filter: drop-shadow(0 0 5px #ffd700);
+}
+
+.header-section .title-container .subtitle {
+  color: #e8f4f8;
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+.header-section .new-project-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ed2e36);
+  color: #fff;
+  border: none;
+  padding: 0.875rem 1.75rem;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.header-section .new-project-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.header-section .new-project-btn i {
+  margin-right: 0.5rem;
+}
+
+.header-section .new-project-btn .expand-icon {
+  margin-left: 0.5rem;
+  transition: transform 0.3s;
+}
+
+.header-section .new-project-btn .expand-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.header-section .new-project-btn.expanded {
+  background: linear-gradient(45deg, #ee5a24, #ff6b6b);
+}
+
+.form-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.6s;
+}
+
+.form-container.show {
+  max-height: 2500px;
+}
+
+.form-container .project-form {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.form-container .project-form .form-group {
+  margin-bottom: 2rem;
+}
+
+.form-container .project-form .form-group .form-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.form-container .project-form .form-group .form-label i {
+  margin-right: 0.5rem;
+  color: #3498db;
+}
+
+.form-container .project-form .form-group .form-control {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  font-size: 1rem;
+  background: #fff;
+  transition: all 0.3s;
+}
+
+.form-container .project-form .form-group .form-control:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  transform: translateY(-1px);
+}
+
+.form-container .project-form .form-group .form-control.error {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.form-container .project-form .form-group .form-control.textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+.form-container .project-form .form-group .form-control::placeholder {
+  color: #95a5a6;
+}
+
+.form-container .project-form .form-group .error-message {
+  color: #e74c3c;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.form-container .project-form .upload-area {
+  border: 3px dashed #3498db;
+  border-radius: 15px;
+  padding: 3rem;
+  text-align: center;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(155, 89, 182, 0.05));
+}
+
+.form-container .project-form .upload-area:hover {
+  border-color: #2980b9;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(155, 89, 182, 0.1));
+  transform: scale(1.02);
+}
+
+.form-container .project-form .upload-area.drag-over {
+  border-color: #27ae60;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
+  transform: scale(1.05);
+}
+
+.form-container .project-form .upload-area .upload-content .upload-icon {
+  font-size: 4rem;
+  color: #3498db;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 0 10px rgba(52, 152, 219, 0.3));
+}
+
+.form-container .project-form .upload-area .upload-content .upload-text {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.form-container .project-form .upload-area .upload-content .upload-subtext {
+  color: #7f8c8d;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+.form-container .project-form .upload-area .upload-content .browse-btn {
+  background: linear-gradient(45deg, #3498db, #2980b9);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
+  transition: all 0.3s;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+}
+
+.form-container .project-form .upload-area .upload-content .browse-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+.form-container .project-form .upload-area .upload-content .browse-btn i {
+  margin-right: 0.5rem;
+}
+
+.form-container .project-form .selected-files {
+  margin-top: 1.5rem;
+}
+
+.form-container .project-form .selected-files .files-title {
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.form-container .project-form .selected-files .file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(52, 152, 219, 0.1);
+  transition: all 0.3s;
+}
+
+.form-container .project-form .selected-files .file-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.form-container .project-form .selected-files .file-item .file-info {
+  display: flex;
+  align-items: center;
+}
+
+.form-container .project-form .selected-files .file-item .file-info .file-icon {
+  margin-right: 0.75rem;
+  color: #27ae60;
+  font-size: 1.2rem;
+}
+
+.form-container .project-form .selected-files .file-item .file-info .file-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.form-container .project-form .selected-files .file-item .file-info .file-size {
+  color: #7f8c8d;
+  margin-left: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.form-container .project-form .selected-files .file-item .remove-file-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.3s;
+}
+
+.form-container .project-form .selected-files .file-item .remove-file-btn:hover {
+  color: #c0392b;
+  transform: scale(1.2);
+}
+
+.form-container .project-form .form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 3rem;
+}
+
+.form-container .project-form .form-actions .submit-btn,
+.form-container .project-form .form-actions .cancel-btn {
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+  border: none;
+  min-width: 140px;
+}
+
+.form-container .project-form .form-actions .submit-btn:disabled,
+.form-container .project-form .form-actions .cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.form-container .project-form .form-actions .submit-btn {
+  background: linear-gradient(45deg, #ed2e36);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.form-container .project-form .form-actions .submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.form-container .project-form .form-actions .cancel-btn {
+  background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(149, 165, 166, 0.3);
+}
+
+.form-container .project-form .form-actions .cancel-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(149, 165, 166, 0.4);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 5rem 2rem;
+  color: #fff;
+}
+
+.empty-state .empty-content .empty-icon {
+  font-size: 5rem;
+  margin-bottom: 1.5rem;
+  color: #ffd700;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+  animation: pulse 2s infinite;
+}
+
+.empty-state .empty-content h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.empty-state .empty-content p {
+  font-size: 1.2rem;
+  color: #e8f4f8;
+  font-weight: 300;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .test-generation-container {
+    padding: 1rem;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .header-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-section .title-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .header-section .title-container .main-title {
+    font-size: 2rem;
+  }
+
+  .header-section .new-project-btn {
+    align-self: stretch;
+    justify-content: center;
+    padding: 1rem 2rem;
+  }
+
+  .form-container .project-form {
+    padding: 1.5rem;
+  }
+
+  .form-container .project-form .form-actions {
+    flex-direction: column;
+  }
+
+  .form-container .project-form .form-actions .submit-btn,
+  .form-container .project-form .form-actions .cancel-btn {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .form-container .project-form .upload-area {
+    padding: 2rem !important;
+  }
+
+  .form-container .project-form .file-analysis-preview .analysis-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .form-container .project-form .file-analysis-preview .analysis-sidebar,
+  .form-container .project-form .file-analysis-preview .analysis-main {
+    border-right: none;
+    border-bottom: 1px solid #d8d8d0;
+  }
+
+  .form-container .project-form .file-analysis-preview .fields-grid {
+    grid-template-columns: 1fr;
+  }
+}

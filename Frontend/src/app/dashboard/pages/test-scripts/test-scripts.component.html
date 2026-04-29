@@ -1,0 +1,97 @@
+<section class="scripts-page">
+	<div class="scripts-shell">
+		<header class="scripts-toolbar">
+			<div class="selectors-row">
+				<div class="select-wrap">
+					<label for="framework">Framework</label>
+					<select id="framework" [(ngModel)]="selectedFramework">
+						<option *ngFor="let fw of frameworks" [value]="fw">{{ fw }}</option>
+					</select>
+				</div>
+
+				<div class="select-wrap">
+					<label for="language">Langage</label>
+					<select id="language" [(ngModel)]="selectedLanguage">
+						<option *ngFor="let lang of languages" [value]="lang">{{ lang }}</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="stack-badges">
+				<span class="badge">{{ selectedFramework }}</span>
+				<span class="badge">{{ selectedLanguage }}</span>
+			</div>
+		</header>
+
+		<div class="workspace-grid">
+			<article class="panel panel-editor">
+				<div class="panel-header panel-header-editor">
+				
+					<small class="scenario-label">Texte du scénario</small>
+				</div>
+				<textarea
+					[(ngModel)]="scenarioInput"
+					spellcheck="false"
+					wrap="off"
+					placeholder="Décrivez votre scénario de test ici..."
+					[disabled]="isGenerating"
+				></textarea>
+			</article>
+
+			<article class="panel panel-preview">
+				<div class="panel-header">
+					<h3>script généré</h3>
+					<button
+						type="button"
+						class="copy-btn"
+						(click)="copyCode()"
+						[disabled]="!generatedCode"
+						[class.copied]="copySuccess"
+					>
+						{{ copySuccess ? '✓ Copié' : 'Copier' }}
+					</button>
+				</div>
+
+				<div *ngIf="isGenerating" class="loading-overlay">
+					<div class="spinner"></div>
+					<p>Génération en cours . . .</p>
+				</div>
+
+				<div *ngIf="errorMessage" class="error-banner">
+					<span class="error-icon">⚠</span>
+					{{ errorMessage }}
+				</div>
+
+				<pre *ngIf="generatedCode && !isGenerating"><code>{{ generatedCode }}</code></pre>
+
+				<div *ngIf="!generatedCode && !isGenerating && !errorMessage" class="empty-state">
+					<p>Le script généré apparaîtra ici</p>
+				</div>
+			</article>
+		</div>
+
+		<footer class="scripts-footer">
+			<div class="footer-actions">
+				<button
+					class="btn-generate"
+					type="button"
+					(click)="generateScript()"
+					[disabled]="isGenerating"
+				>
+					<span *ngIf="!isGenerating">Générer</span>
+					<span *ngIf="isGenerating" class="btn-loading">
+						<span class="spinner-sm"></span> Génération...
+					</span>
+				</button>
+				<button
+					class="btn-export"
+					type="button"
+					(click)="exportScript()"
+					[disabled]="!generatedCode || isGenerating"
+				>
+					Exporter
+				</button>
+			</div>
+		</footer>
+	</div>
+</section>

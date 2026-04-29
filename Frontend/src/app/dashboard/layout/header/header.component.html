@@ -1,0 +1,83 @@
+<nav class="header-navbar" [class.scrolled]="isScrolled">
+  <div class="navbar-container">
+    <!-- Logo Section (Left) -->
+    <div class="navbar-logo">
+      <a class="navbar-brand" href="/">
+        <img src="assets/images/st2i-logo.png" alt="ST2I" class="logo-img">
+      </a>
+    </div>
+
+    <!-- Navigation Links (Center) -->
+    <div class="navbar-nav-desktop">
+      <ul class="navbar-nav-list">
+        <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">ACCUEIL</a></li>
+        <li><a routerLink="/a-propos" routerLinkActive="active">À PROPOS</a></li>
+        <li><a routerLink="/upload-projet" routerLinkActive="active">GÉNÉRATION DE TESTS</a></li>
+        <li *ngIf="currentUser"><a routerLink="/projects" routerLinkActive="active">PROJETS</a></li>
+        <li><a routerLink="/scripts" routerLinkActive="active">SCRIPTS</a></li>
+        <li><a routerLink="/" routerLinkActive="active">CONTACT</a></li>
+      </ul>
+    </div>
+
+    <!-- User Info Section (Right) -->
+    <div class="navbar-user">
+      <ul class="navbar-user-list">
+        <ng-container *ngIf="currentUser; else notLoggedIn">
+          <li class="user-info">
+            <i class="bi bi-person-circle"></i>
+            <span>{{ currentUser.nom }}</span>
+          </li>
+          <li class="separator">|</li>
+          <li>
+            <button (click)="logout()" class="btn-logout">
+              <i class="bi bi-box-arrow-right"></i>
+              SE DÉCONNECTER
+            </button>
+          </li>
+        </ng-container>
+
+        <ng-template #notLoggedIn>
+          <li>
+            <a routerLink="/login" class="auth-link">
+              <i class="bi bi-box-arrow-in-right"></i>
+              SE CONNECTER
+            </a>
+          </li>
+          <li class="separator">|</li>
+          <li>
+            <a routerLink="/signup" class="auth-link">
+              <i class="bi bi-person-plus"></i>
+              S'INSCRIRE
+            </a>
+          </li>
+        </ng-template>
+      </ul>
+
+      <!-- Mobile Menu Toggle -->
+      <button class="navbar-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" 
+              data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+        <span class="navbar-toggle-icon"></span>
+      </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar"
+      aria-labelledby="offcanvasNavbarLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Menu</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"
+          aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav-mobile">
+          <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">ACCUEIL</a></li>
+          <li><a routerLink="/a-propos" routerLinkActive="active">À PROPOS</a></li>
+          <li><a routerLink="/upload-projet" routerLinkActive="active">GÉNÉRATION DE TESTS</a></li>
+          <li *ngIf="currentUser"><a routerLink="/projects" routerLinkActive="active">PROJETS</a></li>
+          <li><a routerLink="/scripts" routerLinkActive="active">SCRIPTS</a></li>
+          <li><a routerLink="/" routerLinkActive="active">CONTACT</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>

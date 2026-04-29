@@ -1,0 +1,1130 @@
+<div class="container-lg py-5 px-4">
+  <!-- Bouton Nouveau Projet -->
+  <div class="row mb-5 justify-content-end">
+    <div class="col-auto">
+      <button class="btn btn-new-project" (click)="createNewProject()" [disabled]="isLoading">
+        <i class="bi bi-plus-circle me-2"></i>
+        Nouveau Projet
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages de succès/erreur -->
+  <div class="row mb-4" *ngIf="successMessage">
+    <div class="col-12">
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>
+        {{ successMessage }}
+        <button type="button" class="btn-close" (click)="clearMessage('success')">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4" *ngIf="errorMessage">
+    <div class="col-12">
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-circle me-2"></i>
+        {{ errorMessage }}
+        <button type="button" class="btn-close" (click)="clearMessage('error')">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chargement -->
+  <div class="row" *ngIf="isLoading">
+    <div class="col-12 text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Chargement...</span>
+      </div>
+      <p class="mt-3 text-muted">Chargement de vos projets...</p>
+    </div>
+  </div>
+
+  <!-- Liste de projets vide -->
+  <div class="row" *ngIf="!isLoading && projects.length === 0">
+    <div class="col-12">
+      <div class="alert alert-info text-center py-5">
+        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+        <h5>Aucun projet trouvé</h5>
+        <p class="mb-3">Vous n'avez pas encore créé de projet.</p>
+        <button class="btn btn-primary" (click)="createNewProject()">
+          <i class="bi bi-plus-circle me-2"></i>
+          Créer votre premier projet
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cartes des projets (Grid Layout) -->
+  <div class="row g-4" *ngIf="!isLoading && projects.length > 0">
+    <div class="col-lg-4 col-md-6 col-sm-12" *ngFor="let project of projects">
+      <div class="project-card">
+        <!-- En-tête de la carte -->
+        <div class="card-header-custom">
+          <div class="status-badge" [ngClass]="'status-' + project.statut.toLowerCase()">
+            {{ project.statut }}
+          </div>
+          <div class="card-actions" dropdown>
+            <button class="btn-icon" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item" href="javascript:void(0)" (click)="openProjectDetailsModal(project)">
+                  <i class="bi bi-eye me-2"></i> Voir détails
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="javascript:void(0)" (click)="editProject(project.id)">
+                  <i class="bi bi-pencil me-2"></i> Modifier
+                </a>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <a class="dropdown-item text-danger" href="javascript:void(0)" (click)="deleteProject(project.id)">
+                  <i class="bi bi-trash me-2"></i> Supprimer
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Contenu de la carte -->
+        <div class="card-body-custom">
+          <!-- Titre -->
+          <h5 class="card-title">
+            <i class="bi bi-folder-fill text-primary me-2"></i>
+            {{ project.nom }}
+          </h5>
+
+          <!-- Description -->
+          <p class="card-description" [title]="project.description">
+            {{ project.description || 'Aucune description' }}
+          </p>
+
+          <!-- Méta-informations -->
+          <div class="card-meta">
+            <div class="meta-item">
+              <i class="bi bi-calendar3 text-muted"></i>
+              <small>{{ project.createdAt | date: 'dd MMM yyyy' }}</small>
+            </div>
+            <div class="meta-item">
+              <i class="bi bi-person-circle text-muted"></i>
+              <small>{{ project.ownerName || project.ownerEmail }}</small>
+            </div>
+          </div>
+
+          <!-- Tags/Badges -->
+          <div class="card-tags">
+            <span class="badge bg-info" *ngIf="project.specificationType === 'USER_STORY'">
+              <i class="bi bi-bookmark me-1"></i>User Story
+            </span>
+            <span class="badge bg-success" *ngIf="project.specificationType === 'LIEN_GIT'">
+              <i class="bi bi-github me-1"></i>GitHub
+            </span>
+            <span class="badge bg-warning" *ngIf="project.specificationType === 'CODE_FICHIER'">
+              <i class="bi bi-file-earmark me-1"></i>Fichier
+            </span>
+            <span class="badge bg-danger" *ngIf="project.specificationType === 'LIEN_APPLICATION'">
+              <i class="bi bi-link-45deg me-1"></i>Application
+            </span>
+
+          </div>
+
+          <!-- Contenu de la spécification -->
+          <div class="card-file" *ngIf="project.specificationContenu">
+            <div *ngIf="project.specificationType === 'USER_STORY'" class="specification-content">
+              <i class="bi bi-bookmark-fill me-2"></i>
+              <small class="text-truncate" [title]="project.specificationContenu || ''">
+                {{ project.specificationContenu | slice:0:50 }}{{ (project.specificationContenu.length || 0) > 50 ?
+                '...' : '' }}
+              </small>
+            </div>
+            <div *ngIf="project.specificationType === 'LIEN_GIT'" class="specification-content">
+              <i class="bi bi-link-45deg me-2"></i>
+              <small class="text-truncate" [title]="project.specificationContenu">
+                {{ project.specificationContenu }}
+              </small>
+            </div>
+            <div *ngIf="project.specificationType === 'CODE_FICHIER'" class="specification-content file-spec">
+              <i class="bi bi-file-earmark-text-fill me-2"></i>
+                <span class="file-spec-name" [title]="getFilename(project.specificationContenu)">
+                {{ getFilename(project.specificationContenu) }}
+              </span>
+            </div>
+            <div *ngIf="project.specificationType === 'LIEN_APPLICATION'" class="specification-content">
+              <i class="bi bi-link-45deg me-2"></i>
+              <small class="text-truncate" [title]="project.specificationContenu">
+                {{ project.specificationContenu }}
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pied de page de la carte -->
+        <div class="card-footer-custom">
+          <!-- Bouton Voir Détails (Pour tous les projets) -->
+          <button class="btn btn-sm btn-outline-info btn-details-compact" (click)="openProjectDetailsModal(project)" 
+            title="Voir les détails du projet">
+            <i class="bi bi-info-circle me-1"></i>Détails
+          </button>
+
+          <!-- Bouton Générer les tests (Caché si TERMINE) -->
+          <button *ngIf="project.statut !== 'TERMINE'" class="btn btn-sm btn-generate"
+            (click)="onGenerateTests(project.id)" [disabled]="project.statut === 'EN_COURS'"
+            [class.loading]="generatingId === project.id" title="Générer les scripts Selenium">
+
+            <span *ngIf="generatingId !== project.id">
+              <i class="bi bi-lightning-fill me-1"></i>Générer tests
+            </span>
+            <span *ngIf="generatingId === project.id">
+              <i class="bi bi-hourglass-split me-1"></i>En cours...
+            </span>
+          </button>
+
+          <!-- Bouton Voir les Scénarios (MASQUÉ pour LIEN_APPLICATION) -->
+          <button *ngIf="project.statut === 'TERMINE' && project.specificationType !== 'LIEN_APPLICATION' && project.specificationType !== 'CODE_FICHIER'" class="btn btn-sm btn-info" (click)="viewScenarios(project)"
+            title="Voir les scénarios générés">
+            <i class="bi bi-eye me-1"></i>Voir scénarios
+          </button>
+
+          <!-- Bouton Tableau de bord (AFFICHE pour LIEN_APPLICATION et CODE_FICHIER) -->
+          <button *ngIf="project.statut === 'TERMINE' && (project.specificationType === 'LIEN_APPLICATION' || project.specificationType === 'CODE_FICHIER')" class="btn btn-sm btn-info ms-1" (click)="openWebTestingDashboard(project)"
+            title="Ouvrir le tableau de bord des tests">
+            <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
+          </button>
+          <!-- Bouton Envoyer vers Jira Xray (remplace Scripts si TERMINE) -->
+          <button *ngIf="project.statut === 'TERMINE'" class="btn btn-sm btn-primary ms-1 btn-jira-xray"
+            (click)="onPushToJiraDirect(project)" title="Envoyer les tests vers Jira Xray">
+            <i class="bi bi-cloud-arrow-up me-1"></i>Vers Jira Xray
+          </button>
+
+
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE DES DÉTAILS DU PROJET -->
+<div class="project-details-overlay" *ngIf="selectedProjectForDetails" (click)="closeProjectDetailsModal()">
+  <div class="project-details-modal" (click)="$event.stopPropagation()">
+    <!-- En-tête avec statut -->
+    <div class="details-header" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
+      <span class="status-badge" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
+        {{ selectedProjectForDetails.statut }}
+      </span>
+      <button class="btn-close-modal" (click)="closeProjectDetailsModal()">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+
+    <!-- Corps de la modale -->
+    <div class="details-body">
+      <!-- Titre du projet -->
+      <div class="project-title-section mb-4">
+        <div class="title-with-icon">
+          <i class="bi bi-envelope-fill text-primary me-2"></i>
+          <h3 class="m-0">{{ selectedProjectForDetails.nom }}</h3>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="description-section mb-4" *ngIf="selectedProjectForDetails.description">
+        <p class="text-muted">{{ selectedProjectForDetails.description }}</p>
+      </div>
+
+      <!-- Infos générales -->
+      <div class="info-grid mb-4">
+        <div class="info-item">
+          <div class="info-label">
+            <i class="bi bi-calendar3 me-2"></i>Date de création
+          </div>
+          <div class="info-value">
+            {{ selectedProjectForDetails.createdAt | date: 'dd MMM yyyy' }}
+          </div>
+        </div>
+
+        <div class="info-item">
+          <div class="info-label">
+            <i class="bi bi-person-circle me-2"></i>Créateur
+          </div>
+          <div class="info-value">
+            {{ selectedProjectForDetails.ownerName || selectedProjectForDetails.ownerEmail }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Type de spécification -->
+      <div class="specification-type mb-4">
+        <div class="type-badge" [ngClass]="{
+          'bg-info': selectedProjectForDetails.specificationType === 'USER_STORY',
+          'bg-success': selectedProjectForDetails.specificationType === 'LIEN_GIT',
+          'bg-warning': selectedProjectForDetails.specificationType === 'CODE_FICHIER',
+          'bg-danger': selectedProjectForDetails.specificationType === 'LIEN_APPLICATION'
+        }">
+          <i class="bi me-2" [ngClass]="{
+            'bi-bookmark': selectedProjectForDetails.specificationType === 'USER_STORY',
+            'bi-github': selectedProjectForDetails.specificationType === 'LIEN_GIT',
+            'bi-file-earmark': selectedProjectForDetails.specificationType === 'CODE_FICHIER',
+            'bi-link-45deg': selectedProjectForDetails.specificationType === 'LIEN_APPLICATION'
+          }"></i>
+          <span>{{ selectedProjectForDetails.specificationType }}</span>
+        </div>
+      </div>
+
+      <!-- Contenu de la spécification -->
+      <div class="specification-content mb-4">
+        <div class="content-label">
+          <i class="bi bi-bookmark-fill me-2"></i>
+          <span *ngIf="selectedProjectForDetails.specificationType === 'USER_STORY'">User Story</span>
+          <span *ngIf="selectedProjectForDetails.specificationType === 'LIEN_GIT'">Lien GitHub</span>
+          <span *ngIf="selectedProjectForDetails.specificationType === 'CODE_FICHIER'">Fichier du projet</span>
+          <span *ngIf="selectedProjectForDetails.specificationType === 'LIEN_APPLICATION'">Lien Application</span>
+        </div>
+        <div class="content-box" *ngIf="selectedProjectForDetails.specificationType !== 'CODE_FICHIER'">
+          {{ selectedProjectForDetails.specificationContenu || 'Aucun contenu disponible' }}
+        </div>
+        <div class="content-box file-detail-box" *ngIf="selectedProjectForDetails.specificationType === 'CODE_FICHIER'">
+          <i class="bi bi-file-earmark-text-fill me-2 text-warning"></i>
+          <span>{{ getFilename(selectedProjectForDetails.specificationContenu) || 'Aucun fichier' }}</span>
+        </div>
+      </div>
+
+      <!-- Statut détaillé -->
+      <div class="status-details">
+        <div class="status-item">
+          <span class="status-label">Statut</span>
+          <span class="status-badge" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
+            {{ selectedProjectForDetails.statut }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pied de page avec actions -->
+    <div class="details-footer">
+      <div class="action-buttons">
+       
+        
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && selectedProjectForDetails.specificationType !== 'CODE_FICHIER' && selectedProjectForDetails.specificationType !== 'LIEN_APPLICATION'" class="btn btn-secondary" 
+          (click)="viewScenarios(selectedProjectForDetails); closeProjectDetailsModal()">
+          <i class="bi bi-eye me-1"></i>Voir scénarios
+        </button>
+        
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && (selectedProjectForDetails.specificationType === 'LIEN_APPLICATION' || selectedProjectForDetails.specificationType === 'CODE_FICHIER')" class="btn btn-info ms-2" 
+          (click)="openWebTestingDashboard(selectedProjectForDetails); closeProjectDetailsModal()">
+          <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
+        </button>
+        
+        <button *ngIf="selectedProjectForDetails.statut !== 'TERMINE'" class="btn btn-primary" 
+          (click)="onGenerateTests(selectedProjectForDetails.id); closeProjectDetailsModal()">
+          <i class="bi bi-lightning-fill me-1"></i>Générer tests
+        </button>
+        
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE'" class="btn btn-success" 
+          (click)="onPushToJiraDirect(selectedProjectForDetails); closeProjectDetailsModal()">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Envoyer vers Jira Xray
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay et Modale Dark UI pour la User Story -->
+<div class="user-story-overlay" *ngIf="selectedUserStoryProject" (click)="closeUserStoryModal()">
+  <div class="user-story-modal" (click)="$event.stopPropagation()">
+    <!-- En-tête -->
+    <div class="us-header">
+      <div class="us-title-group">
+        <i class="bi bi-card-heading text-warning me-2"></i>
+        <span>USER STORY</span>
+      </div>
+      <button class="btn-close-custom" (click)="closeUserStoryModal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Bande d'informations du projet -->
+    <div class="us-project-info" *ngIf="selectedUserStoryProject">
+      <div class="project-info-item">
+        <span class="info-label">Projet</span>
+        <span class="info-value">{{ selectedUserStoryProject.nom }}</span>
+      </div>
+      <div class="project-info-item">
+        <span class="info-label">Statut</span>
+        <span class="status-badge" [ngClass]="'status-' + selectedUserStoryProject.statut.toLowerCase()">
+          {{ selectedUserStoryProject.statut }}
+        </span>
+      </div>
+      <div class="project-info-item">
+        <span class="info-label">Date</span>
+        <span class="info-value">{{ selectedUserStoryProject.createdAt | date: 'dd MMM yyyy' }}</span>
+      </div>
+      <div class="project-info-item">
+        <span class="info-label">Auteur</span>
+        <span class="info-value">{{ selectedUserStoryProject.ownerName || selectedUserStoryProject.ownerEmail }}</span>
+      </div>
+    </div>
+
+    <!-- Vue standard (Avant génération) -->
+    <ng-container
+      *ngIf="!generatedScenarios && generatingId !== selectedUserStoryProject.id && selectedUserStoryProject.statut !== 'TERMINE'">
+      <div class="us-body">
+        <!-- Section User Story Complète -->
+        <div class="us-complete-section">
+          <div class="us-section-title">
+            <i class="bi bi-file-text me-2"></i>
+            <span>User Story Complète</span>
+          </div>
+          <div class="us-content-box">
+            <p class="us-content-text">{{ selectedUserStoryProject.specificationContenu || 'Aucune description fournie.' }}</p>
+          </div>
+        </div>
+
+        <!-- Options de génération -->
+        <div class="us-generation-options">
+          <h6 class="options-title">Types de scénarios à générer</h6>
+          <div class="us-options">
+            <div class="us-pill active success">
+              <i class="bi bi-check-square-fill me-1"></i> Fonctionnels
+            </div>
+            <div class="us-pill active warning">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i> Edge Cases
+            </div>
+            <div class="us-pill active danger">
+              <i class="bi bi-x-square-fill me-1"></i> Négatifs
+            </div>
+            <div class="us-pill active primary">
+              <i class="bi bi-lightning-fill me-1"></i> Performance
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="us-footer">
+        <button class="btn-generate-scenarios" (click)="onGenerateTests(selectedUserStoryProject!.id)">
+          <span class="emoji">🚀</span> Générer tous les scénarios
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Vue de chargement IA -->
+    <div class="us-body loading-view" *ngIf="generatingId === selectedUserStoryProject.id">
+      <div class="ai-loader text-center mt-4">
+        <div class="spinner-grow text-primary" role="status"></div>
+        <div class="spinner-grow text-info mx-2" style="animation-delay: 0.2s;" role="status"></div>
+        <div class="spinner-grow text-primary" style="animation-delay: 0.4s;" role="status"></div>
+      </div>
+      <h5 class="mt-4 text-white text-center">Veuillez patienter, le traitement est en cours...</h5>
+      <p class="text-muted text-center mb-4">Génération des scénarios Gherkin en cours, veuillez patienter.</p>
+    </div>
+
+    <!-- Vue Résultat (Tableau Gherkin) -->
+    <div class="us-body result-view" *ngIf="generatedScenarios">
+      <h5 class="mb-3 text-white"><i class="bi bi-magic text-warning me-2"></i> Scénarios générés</h5>
+      <div class="table-responsive gherkin-table-container">
+        <table class="table table-dark gherkin-table align-middle">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 25%">Type / Titre</th>
+              <th scope="col" style="width: 75%">Scénario (Gherkin)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let scenario of generatedScenarios">
+              <td>
+                <span class="badge" [ngClass]="{
+                     'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
+                     'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
+                     'bg-danger': scenario.type === 'Négatif',
+                     'bg-primary': scenario.type === 'Performance'
+                   }">
+                  {{ scenario.type || 'Fonctionnel' }}
+                </span>
+                <p class="mt-2 mb-0 fw-bold title-scenario text-light">{{ scenario.nomSenario }}</p>
+                <small class="text-muted d-block mt-1">{{ scenario.description }}</small>
+              </td>
+              <td>
+                <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Panneau Jira Integration -->
+      <div class="jira-integration-panel p-3 mb-2 mx-3 rounded"
+        style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);">
+        <h6 class="text-white mb-3">
+          <span style="color: #0052CC; font-weight: bold;">Jira</span> Xray
+          <span *ngIf="isJiraConnected" class="badge bg-success ms-2">Connecté</span>
+          <span *ngIf="!isJiraConnected" class="badge bg-secondary ms-2">Non connecté</span>
+        </h6>
+
+        <div *ngIf="isJiraConnected" class="row g-2 align-items-center">
+          <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
+              placeholder="Project Key (ex: PFE)" (input)="jiraProjectKey = $any($event.target).value"
+              [value]="jiraProjectKey">
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
+              placeholder="User Story ID (Optionnel)" (input)="jiraUserStoryId = $any($event.target).value"
+              [value]="jiraUserStoryId">
+          </div>
+          <div class="col-md-4">
+            <button class="btn btn-sm btn-primary w-100" (click)="pushToJira()"
+              [disabled]="isPushingToJira || !jiraProjectKey">
+              <i class="bi" [ngClass]="isPushingToJira ? 'bi-hourglass-split' : 'bi-cloud-arrow-up'"></i>
+              {{ isPushingToJira ? 'Envoi...' : 'Envoyer vers Jira Xray' }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="!isJiraConnected" class="text-center">
+          <button class="btn btn-sm btn-outline-primary" (click)="connectJira()">
+            <i class="bi bi-link-45deg me-1"></i> Connecter avec Jira
+          </button>
+        </div>
+
+        <div *ngIf="isJiraConnected && (pushMessage || pushError)" class="mt-3">
+          <div class="alert alert-sm mb-0 p-2 text-center" [ngClass]="pushError ? 'alert-danger' : 'alert-success'"
+            style="font-size: 0.85rem;">
+            <i class="bi me-2" [ngClass]="pushError ? 'bi-exclamation-octagon' : 'bi-check-circle'"></i>
+            {{ pushMessage || pushError }}
+          </div>
+        </div>
+      </div>
+
+      <div class="us-footer result-footer">
+        <button class="btn btn-outline-secondary me-2" (click)="closeUserStoryModal()">Fermer</button>
+        <!-- Le bouton "Voir les tests" est momentanément désactivé car la page de consultation des scripts complets n'est pas encore développée. Vous pouvez les voir ici pour l'instant ! -->
+        <button class="btn btn-success" disabled
+          title="La page de gestion des scripts sera développée prochainement !"><i class="bi bi-check-circle me-1"></i>
+          Sauvegardé en Base !</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE DE CONFIRMATION DE SUPPRESSION -->
+<div class="delete-confirmation-overlay" *ngIf="showDeleteConfirmation" (click)="closeDeleteConfirmation()">
+  <div class="delete-confirmation-modal" (click)="$event.stopPropagation()">
+    <!-- Icône d'avertissement -->
+    <div class="confirmation-icon">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+    </div>
+
+    <!-- Titre -->
+    <h3 class="confirmation-title">Êtes-vous sûr ?</h3>
+
+    <!-- Message -->
+    <p class="confirmation-message" *ngIf="projectToDelete">
+      Vous allez supprimer le projet <strong>{{ projectToDelete.nom }}</strong>.
+    </p>
+
+    <!-- Avertissement -->
+    <div class="confirmation-warning">
+      <i class="bi bi-info-circle me-2"></i>
+      Cette action ne peut pas être annulée.
+    </div>
+
+    <!-- Boutons d'action -->
+    <div class="confirmation-actions">
+      <button class="btn btn-outline-secondary" (click)="closeDeleteConfirmation()" [disabled]="isDeleting">
+        Annuler
+      </button>
+      <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="isDeleting">
+        <span *ngIf="!isDeleting">
+          <i class="bi bi-trash me-1"></i>Oui, supprimer
+        </span>
+        <span *ngIf="isDeleting">
+          <i class="bi bi-hourglass-split me-1"></i>Suppression...
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TABLEAU DE BORD DES TESTS WEB (Pour la generation LIEN_APPLICATION) -->
+<div class="web-testing-overlay" *ngIf="showWebTestingDashboard" (click)="closeWebTestingDashboard()">
+  <div class="web-testing-modal pb-4" (click)="$event.stopPropagation()">
+    
+    <!-- Top Header Navigation -->
+    <div class="wt-top-nav">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-robot text-primary me-2 fs-4"></i>
+        <h4 class="m-0 text-dark fw-bold">Pipeline de Tests</h4>
+      </div>
+      <button class="wt-delete-btn" (click)="closeWebTestingDashboard()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Main Title Area -->
+    <div class="wt-header">
+      <div class="d-flex align-items-center mb-2">
+        <h2 class="wt-url m-0 me-3">{{ webTestingProject?.specificationType === 'CODE_FICHIER' ? (getFilename(webTestingProject?.specificationContenu) || webTestingProject?.nom) : (webTestingProject?.specificationContenu || 'https://example.com/') }}</h2>
+        <span class="badge wt-badge-functional text-uppercase">FONCTIONNEL</span>
+      </div>
+      <div class="text-secondary wt-subtitle mt-2">
+        <span class="me-3">{{ webTestingProject?.createdAt | date:'yyyy-MM-dd HH:mm:ss' }}</span> 
+        <span>Titre : {{ webTestingProject?.nom }} - Génération de tests</span>
+      </div>
+    </div>
+
+    <hr class="wt-divider">
+
+    <!-- Dashboard style Fichier du projet -->
+    <div class="file-spec-dashboard mx-4 mb-4" *ngIf="webTestingProject?.specificationType === 'CODE_FICHIER'">
+      <div class="fsd-topbar">
+        <div class="fsd-brand">
+          <span class="dot"></span>
+          <span class="name">Tests automatisés</span>
+        </div>
+        <div class="fsd-actions">
+          <span class="chip">
+            <span class="status-dot"></span>
+            {{ getFilename(webTestingProject?.specificationContenu) || webTestingProject?.nom }}
+          </span>
+          <button type="button" class="btn-mini primary" (click)="analyzeProjectFile()" [disabled]="isAnalyzingFile">
+            <span *ngIf="!isAnalyzingFile">Analyser</span>
+            <span *ngIf="isAnalyzingFile"><i class="bi bi-arrow-repeat spin-icon"></i> Analyse...</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="fsd-layout" [class.without-behaviors]="activeFileSpecTab !== 'analyser'">
+        <aside class="fsd-sidebar">
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'analyser'" (click)="setFileSpecTab('analyser')">
+            <i class="bi bi-search side-icon" aria-hidden="true"></i>
+            <span>Analyser</span>
+          </button>
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'generer'" (click)="setFileSpecTab('generer')">
+            <i class="bi bi-file-earmark-plus side-icon" aria-hidden="true"></i>
+            <span>Générer</span>
+          </button>
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'tester'" (click)="setFileSpecTab('tester')">
+            <i class="bi bi-play-circle side-icon" aria-hidden="true"></i>
+            <span>Tester</span>
+          </button>
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'historique'" (click)="setFileSpecTab('historique')">
+            <i class="bi bi-file-earmark-text side-icon" aria-hidden="true"></i>
+            <span>Historique</span>
+          </button>
+
+          <div class="active-file">
+            <p class="label">Fichier actif</p>
+            <p class="value">{{ getFilename(webTestingProject?.specificationContenu) || webTestingProject?.nom }}</p>
+            <p class="meta">{{ elementsDetected }} champs · {{ scenariosGenerated }} tests</p>
+          </div>
+        </aside>
+
+        <!-- TAB: ANALYSER -->
+        <section class="fsd-main" *ngIf="activeFileSpecTab === 'analyser'">
+          <div class="section-head">
+            <h6>Champs détectés</h6>
+            <span class="counter">{{ fileAnalysisFields.length || elementsDetected }} éléments</span>
+          </div>
+
+          <!-- Loading state -->
+          <div class="fsd-content" *ngIf="isAnalyzingFile">
+            <div class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+              <p class="text-muted mt-2 mb-0" style="font-size: 0.85rem;">Analyse en cours via BeautifulSoup...</p>
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div class="fsd-content" *ngIf="!isAnalyzingFile && fileAnalysisError">
+            <div class="text-center py-4 text-danger">
+              <i class="bi bi-exclamation-triangle fs-4 d-block mb-2"></i>
+              <p class="mb-0" style="font-size: 0.85rem;">{{ fileAnalysisError }}</p>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="fsd-content" *ngIf="!isAnalyzingFile && !fileAnalysisError && fileAnalysisFields.length === 0">
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-search fs-3 d-block mb-2"></i>
+              <p class="mb-0" style="font-size: 0.85rem;">Cliquez sur "Analyser" pour détecter les champs</p>
+            </div>
+          </div>
+
+          <!-- Fields list -->
+          <div class="fsd-content fields-list" *ngIf="!isAnalyzingFile && fileAnalysisFields.length > 0">
+            <div class="field-card" *ngFor="let field of fileAnalysisFields">
+              <div class="field-card-header">
+                <span class="field-tag-badge" [ngClass]="{
+                  'tag-input': field.tag === 'input',
+                  'tag-select': field.tag === 'select',
+                  'tag-textarea': field.tag === 'textarea',
+                  'tag-button': field.tag === 'button',
+                  'tag-link': field.tag === 'a'
+                }">{{ field.tag }}</span>
+                <span class="field-type" *ngIf="field.type && field.type !== field.tag">{{ field.type }}</span>
+                <i class="bi bi-asterisk text-danger ms-auto" style="font-size: 0.6rem;" *ngIf="field.required" title="Champ requis"></i>
+              </div>
+              <div class="field-card-body">
+                <p class="field-label" *ngIf="field.label">{{ field.label }}</p>
+                <div class="field-attrs">
+                  <span *ngIf="field.name" class="attr"><b>name:</b> {{ field.name }}</span>
+                  <span *ngIf="field.id" class="attr"><b>id:</b> {{ field.id }}</span>
+                  <span *ngIf="field.placeholder" class="attr"><b>placeholder:</b> {{ field.placeholder }}</span>
+                </div>
+                <div class="field-validations" *ngIf="field.validations">
+                  <span class="validation-rule" *ngFor="let rule of field.validations | keyvalue">
+                    {{ rule.key }}={{ rule.value }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <aside class="fsd-behaviors" *ngIf="activeFileSpecTab === 'analyser'">
+          <div class="section-head">
+            <h6>Comportements détectés</h6>
+            <span class="counter ok">{{ fileAnalysisBehaviors.length > 0 ? fileAnalysisBehaviors.length + ' détectés' : (isAnalyzingFile ? 'analyse...' : '-') }}</span>
+          </div>
+
+          <!-- Loading state -->
+          <div class="fsd-content" *ngIf="isAnalyzingFile">
+            <div class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+              <p class="text-muted mt-2 mb-0" style="font-size: 0.85rem;">Détection des comportements...</p>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="fsd-content" *ngIf="!isAnalyzingFile && fileAnalysisBehaviors.length === 0 && !fileAnalysisError">
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-activity fs-3 d-block mb-2"></i>
+              <p class="mb-0" style="font-size: 0.85rem;">Les comportements apparaîtront après l'analyse</p>
+            </div>
+          </div>
+
+          <!-- Behaviors list -->
+          <div class="fsd-content behaviors-list" *ngIf="!isAnalyzingFile && fileAnalysisBehaviors.length > 0">
+            <div class="behavior-card" *ngFor="let behavior of fileAnalysisBehaviors">
+              <div class="behavior-icon">
+                <i class="bi" [ngClass]="behavior.icon || 'bi-gear'"></i>
+              </div>
+              <div class="behavior-info">
+                <p class="behavior-label">{{ behavior.label }}</p>
+                <p class="behavior-desc">{{ behavior.description }}</p>
+              </div>
+              <span class="behavior-category-badge" [ngClass]="{
+                'cat-form': behavior.category === 'form_submission',
+                'cat-nav': behavior.category === 'navigation',
+                'cat-valid': behavior.category === 'validation',
+                'cat-js': behavior.category === 'js_events',
+                'cat-dynamic': behavior.category === 'dynamic_content'
+              }">{{ behavior.category }}</span>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- TAB: GÉNÉRER -->
+        <section class="fsd-main" *ngIf="activeFileSpecTab === 'generer'">
+          <div class="section-head">
+            <h6>Cas générés</h6>
+            <span class="counter">{{ generatedScenarios?.length || 0 }} tests</span>
+          </div>
+          <div class="fsd-content">
+            <div *ngIf="!generatedScenarios || generatedScenarios.length === 0" class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              <p>Aucun scénario généré pour le moment</p>
+            </div>
+            <div *ngIf="generatedScenarios && generatedScenarios.length > 0" class="scenarios-list">
+              <div *ngFor="let scenario of generatedScenarios" class="scenario-item">
+                <div class="scenario-header">
+                  <span class="badge" [ngClass]="{
+                    'type-fonctionnel': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || !scenario.type,
+                    'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
+                    'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
+                    'bg-danger': scenario.type === 'Négatif',
+                    'bg-primary': scenario.type === 'Performance'
+                  }">
+                    {{ scenario.type || 'Fonctionnel' }}
+                  </span>
+                  <strong class="ms-2">{{ scenario.nomSenario }}</strong>
+                </div>
+                <small class="text-muted d-block mt-1" *ngIf="scenario.description">{{ scenario.description }}</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: TESTER -->
+        <section class="fsd-main" *ngIf="activeFileSpecTab === 'tester'">
+          <div class="section-head">
+            <h6>Résultats des tests</h6>
+            <span class="counter">Tests exécutés</span>
+          </div>
+          <div class="fsd-content">
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-clipboard-check fs-3 d-block mb-2"></i>
+              <p>Les résultats des tests apparaîtront ici après l'exécution</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: HISTORIQUE -->
+        <section class="fsd-main" *ngIf="activeFileSpecTab === 'historique'">
+          <div class="section-head">
+            <h6>Historique</h6>
+            <span class="counter">Générations antérieures</span>
+          </div>
+          <div class="fsd-content">
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+              <p>L'historique des générations apparaîtra ici</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Pipeline Status Card -->
+    <div class="wt-card mx-4 mb-4" *ngIf="webTestingProject?.specificationType !== 'CODE_FICHIER'">
+      <div class="wt-card-header d-flex justify-content-between align-items-center mb-4">
+        <h5 class="wt-card-title m-0">STATUT DU PIPELINE</h5>
+        <span class="badge wt-badge-generating text-uppercase" *ngIf="pipelineStatus === 'generating'">GÉNÉRATION</span>
+        <span class="badge bg-success text-uppercase" *ngIf="pipelineStatus === 'completed'">TERMINÉ</span>
+        <span class="badge bg-danger text-uppercase" *ngIf="pipelineStatus === 'error'">ÉCHEC</span>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="wt-progress-track mb-5">
+        <div class="wt-progress-fill" 
+             [style.width.%]="pipelineProgress" 
+             [ngClass]="{'bg-danger': pipelineStatus === 'error'}"></div>
+      </div>
+
+      <!-- Pipeline Steps -->
+      <div class="wt-pipeline-steps d-flex justify-content-between px-2">
+        <!-- Crawl -->
+        <div class="wt-step text-center" [class.active]="pipelineCurrentStep >= 1">
+          <div class="wt-step-icon-wrapper mb-3" 
+               [class.completed]="pipelineCurrentStep > 1"
+               [class.error]="pipelineCurrentStep === 1 && pipelineStatus === 'error'">
+            <i class="bi bi-globe" *ngIf="!(pipelineCurrentStep === 1 && pipelineStatus === 'error')"></i>
+            <i class="bi bi-x-circle" *ngIf="pipelineCurrentStep === 1 && pipelineStatus === 'error'"></i>
+          </div>
+          <div class="wt-step-label">CRAWL</div>
+        </div>
+
+        <!-- Analyze -->
+        <div class="wt-step text-center" [class.active]="pipelineCurrentStep >= 2">
+          <div class="wt-step-icon-wrapper mb-3" 
+               [class.completed]="pipelineCurrentStep > 2"
+               [class.error]="pipelineCurrentStep === 2 && pipelineStatus === 'error'">
+            <i class="bi bi-cpu" *ngIf="!(pipelineCurrentStep === 2 && pipelineStatus === 'error')"></i>
+            <i class="bi bi-x-circle" *ngIf="pipelineCurrentStep === 2 && pipelineStatus === 'error'"></i>
+          </div>
+          <div class="wt-step-label">ANALYSE</div>
+        </div>
+
+        <!-- Generate -->
+        <div class="wt-step text-center" [class.active]="pipelineCurrentStep >= 3">
+          <div class="wt-step-icon-wrapper mb-3" 
+               [class.completed]="pipelineCurrentStep > 3"
+               [class.error]="pipelineCurrentStep === 3 && pipelineStatus === 'error'">
+            <i class="bi" [ngClass]="pipelineCurrentStep > 3 ? 'bi-check2' : 'bi-code-slash'" *ngIf="!(pipelineCurrentStep === 3 && pipelineStatus === 'error')"></i>
+            <i class="bi bi-x-circle" *ngIf="pipelineCurrentStep === 3 && pipelineStatus === 'error'"></i>
+          </div>
+          <div class="wt-step-label">GÉNÉRER</div>
+        </div>
+
+        <!-- Execute -->
+        <div class="wt-step text-center" [class.active]="pipelineCurrentStep >= 4">
+          <div class="wt-step-icon-wrapper mb-3" [class.completed]="pipelineCurrentStep > 4">
+            <i class="bi bi-play"></i>
+          </div>
+          <div class="wt-step-label">EXÉCUTER</div>
+        </div>
+
+        <!-- Report -->
+        <div class="wt-step text-center" [class.active]="pipelineCurrentStep >= 5" 
+             (click)="pipelineCurrentStep >= 5 ? downloadPdfReport() : null"
+             [style.cursor]="pipelineCurrentStep >= 5 ? 'pointer' : 'default'"
+             [title]="pipelineCurrentStep >= 5 ? 'Télécharger le Rapport PDF' : ''">
+          <div class="wt-step-icon-wrapper mb-3" [class.completed]="pipelineCurrentStep >= 5">
+            <i class="bi" [ngClass]="pipelineCurrentStep >= 5 ? 'bi-file-earmark-pdf fs-4' : 'bi-chevron-right'"></i>
+          </div>
+          <div class="wt-step-label">RAPPORT</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics Row -->
+    <div class="row mx-3 g-3" *ngIf="webTestingProject?.specificationType !== 'CODE_FICHIER'">
+      <!-- Elements Detected -->
+      <div class="col-md-3">
+        <div class="wt-metric-card">
+          <div class="wt-metric-label text-secondary mb-2 text-uppercase">Éléments détectés</div>
+          <div class="wt-metric-value">{{ elementsDetected }}</div>
+        </div>
+      </div>
+      
+      <!-- Scenarios -->
+      <div class="col-md-3">
+        <div class="wt-metric-card">
+          <div class="wt-metric-label text-secondary mb-2 text-uppercase text-primary-custom">Scénarios</div>
+          <div class="wt-metric-value text-dark">{{ scenariosGenerated }}</div>
+        </div>
+      </div>
+
+      <!-- Passed -->
+      <div class="col-md-3">
+        <div class="wt-metric-card">
+          <div class="wt-metric-label text-success mb-2 text-uppercase">Réussis</div>
+          <div class="wt-metric-value text-success">{{ passedMetrics }}</div>
+        </div>
+      </div>
+
+      <!-- Failed -->
+      <div class="col-md-3">
+        <div class="wt-metric-card border-danger-subtle">
+          <div class="wt-metric-label text-danger mb-2 text-uppercase">Échoués</div>
+          <div class="wt-metric-value text-danger">{{ failedMetrics }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION SCÉNARIOS & CAS DE TEST GÉNÉRÉS (ML + CodeT5) ===== -->
+    <div class="mx-4 mt-4" *ngIf="webTestingProject?.specificationType !== 'CODE_FICHIER' && pipelineStatus === 'completed' && generatedScenarios && generatedScenarios.length > 0">
+      <div class="wt-card">
+        <div class="wt-card-header d-flex justify-content-between align-items-center mb-3">
+          <h5 class="wt-card-title m-0">
+            <i class="bi bi-list-check me-2 text-primary"></i>
+            SCÉNARIOS & CAS DE TEST GÉNÉRÉS
+          </h5>
+          <span class="badge bg-primary">{{ generatedScenarios.length }} scénario(s)</span>
+        </div>
+
+        <!-- Tableau des scénarios -->
+        <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+          <table class="table table-dark table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead style="position: sticky; top: 0; background: #1a1a2e; z-index: 1;">
+              <tr>
+                <th style="width: 20%;">Type</th>
+                <th style="width: 25%;">Nom du Scénario</th>
+                <th style="width: 55%;">Détails / Gherkin</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let sc of generatedScenarios; let i = index">
+                <td>
+                  <span class="badge" [ngClass]="{
+                    'bg-success':   sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
+                    'bg-warning text-dark': sc.type === 'Edge Case' || sc.type === 'Cas limites',
+                    'bg-danger':    sc.type === 'Négatif',
+                    'bg-info text-dark': sc.type === 'Selenium Script',
+                    'bg-primary':   sc.type === 'Performance' || !sc.type
+                  }">
+                    <i class="bi me-1" [ngClass]="{
+                      'bi-check-circle': sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
+                      'bi-exclamation-triangle': sc.type === 'Edge Case',
+                      'bi-x-circle': sc.type === 'Négatif',
+                      'bi-code-slash': sc.type === 'Selenium Script',
+                      'bi-lightning': sc.type === 'Performance'
+                    }"></i>
+                    {{ sc.type || 'Fonctionnel' }}
+                  </span>
+                </td>
+                <td>
+                  <strong class="text-light">{{ sc.nomSenario }}</strong>
+                  <small class="text-muted d-block mt-1" *ngIf="sc.description">{{ sc.description }}</small>
+                  <small class="text-success d-block mt-1" *ngIf="sc.resultatAttendu">
+                    <i class="bi bi-arrow-right me-1"></i>{{ sc.resultatAttendu }}
+                  </small>
+                </td>
+                <td>
+                  <pre class="mb-0 p-2 rounded" style="background: rgba(0,0,0,0.4); font-size: 0.78rem; max-height: 140px; overflow-y: auto; color: #a8d8a8; white-space: pre-wrap; font-family: 'Courier New', monospace; border: 1px solid rgba(255,255,255,0.1);">{{ sc.senario }}</pre>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Message si pipeline en cours -->
+    <div class="mx-4 mt-4 text-center text-secondary" *ngIf="webTestingProject?.specificationType !== 'CODE_FICHIER' && pipelineStatus === 'generating'">
+      <i class="bi bi-hourglass-split fs-3 mb-2 d-block"></i>
+      <p>Génération en cours... Les scénarios apparaîtront ici dès la fin de l'analyse.</p>
+    </div>
+    
+  </div>
+</div>
+
+
+<!-- MODALE TERMINAL POUR LIEN_APPLICATION -->
+<div class="terminal-overlay" *ngIf="selectedTerminalProject" (click)="closeTerminalModal()">
+  <div class="terminal-modal" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="terminal-header d-flex align-items-center">
+      <div class="terminal-dots me-3">
+        <span class="dot close-dot"></span>
+        <span class="dot minimize-dot"></span>
+        <span class="dot maximize-dot"></span>
+      </div>
+      <div class="terminal-tabs d-flex ms-3">
+        <button class="terminal-tab-btn" [class.active]="terminalTab === 'terminal'" (click)="setTerminalTab('terminal')">Terminal</button>
+        <button class="terminal-tab-btn" [class.active]="terminalTab === 'scripts'" (click)="setTerminalTab('scripts')">Scripts</button>
+        <button class="terminal-tab-btn" [class.active]="terminalTab === 'results'" (click)="setTerminalTab('results')">Résultats</button>
+      </div>
+      <button class="btn-close-terminal ms-auto" (click)="closeTerminalModal()"><i class="bi bi-x"></i></button>
+    </div>
+    
+    <!-- Body -->
+    <div class="terminal-body" style="overflow-y: auto;">
+      <!-- ONGLET TERMINAL -->
+      <div *ngIf="terminalTab === 'terminal'">
+        <div class="terminal-target mb-3">
+          <span class="text-secondary">AI-Tester$ target-url:</span> <span class="text-info">{{ selectedTerminalProject.specificationContenu }}</span>
+        </div>
+        
+        <div class="terminal-lines">
+          <div *ngFor="let step of terminalSteps" class="terminal-line" [class.success]="step.status === 'done'" [class.active]="step.status === 'active'">
+            <span class="step-icon" *ngIf="step.status === 'done'">✅</span>
+            <span class="step-icon spinner-border spinner-border-sm text-success" *ngIf="step.status === 'active'"></span>
+            <span class="step-text">{{ step.text }}</span>
+          </div>
+        </div>
+        
+        <div class="terminal-progress mt-4" *ngIf="terminalProgress > 0">
+          <div class="progress" style="height: 10px; background-color: #2F334D; border-radius: 4px;">
+            <div class="progress-bar bg-success" role="progressbar" [style.width.%]="terminalProgress" [attr.aria-valuenow]="terminalProgress" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <div class="text-end text-success mt-1" style="font-family: monospace; font-size: 0.85rem;">{{ terminalProgress }}%</div>
+        </div>
+      </div>
+
+      <!-- ONGLET SCRIPTS -->
+      <div *ngIf="terminalTab === 'scripts'" class="scripts-pane">
+         <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h5 class="text-success m-0"><i class="bi bi-file-earmark-code me-2"></i>Scénarios & Scripts Générés</h5>
+              <small class="text-secondary" *ngIf="terminalScripts && terminalScripts.length > 0">
+                {{ terminalScripts.length }} cas de test générés (Gherkin ML + Scripts Selenium)
+              </small>
+            </div>
+            <button class="btn btn-outline-success btn-sm outline-glow" (click)="executePytest()" [disabled]="isExecutingTests">
+               <i class="bi bi-play-fill me-1"></i> ▶ Exécuter les tests
+            </button>
+         </div>
+
+         <div class="accordion accordion-flush terminal-accordion" id="accordionScriptsTerminal" *ngIf="terminalScripts && terminalScripts.length > 0">
+             <div class="accordion-item bg-transparent border-bottom border-secondary" *ngFor="let sc of terminalScripts; let i = index">
+                 <h2 class="accordion-header" [id]="'headingT-' + i">
+                     <button class="accordion-button bg-black text-light collapsed" type="button" data-bs-toggle="collapse" [attr.data-bs-target]="'#collapseT-' + i">
+                         <!-- Icône selon le type -->
+                         <i class="bi me-2" [ngClass]="{
+                           'bi-check-circle text-success': sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
+                           'bi-exclamation-triangle text-warning': sc.type === 'Edge Case',
+                           'bi-x-circle text-danger': sc.type === 'Négatif',
+                           'bi-code-slash text-info': sc.type === 'Selenium Script',
+                           'bi-braces text-success': !sc.type || sc.type === 'Performance'
+                         }"></i>
+                         <span class="font-monospace">{{ sc.nomSenario }}</span>
+                         <!-- Badge type -->
+                         <span class="badge ms-2" style="font-size: 0.65rem;" [ngClass]="{
+                           'bg-success': sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
+                           'bg-warning text-dark': sc.type === 'Edge Case',
+                           'bg-danger': sc.type === 'Négatif',
+                           'bg-info text-dark': sc.type === 'Selenium Script',
+                           'bg-secondary': !sc.type
+                         }">{{ sc.type || 'Gherkin' }}</span>
+                     </button>
+                 </h2>
+                 <div [id]="'collapseT-' + i" class="accordion-collapse collapse" [attr.data-bs-parent]="'#accordionScriptsTerminal'">
+                     <div class="accordion-body p-0 pt-2 pb-3">
+                        <!-- Description si disponible -->
+                        <div *ngIf="sc.description" class="px-3 py-2 mb-2" style="background: rgba(255,255,255,0.04); border-left: 3px solid #198754;">
+                          <small class="text-secondary"><strong>Description :</strong> {{ sc.description }}</small>
+                        </div>
+                        <div *ngIf="sc.resultatAttendu" class="px-3 pb-2" style="background: rgba(255,255,255,0.03);">
+                          <small class="text-secondary"><strong>Résultat attendu :</strong> 
+                            <span class="text-success">{{ sc.resultatAttendu }}</span>
+                          </small>
+                        </div>
+                        <div class="code-header d-flex justify-content-end bg-gradient-dark p-1 rounded-top">
+                            <button class="btn btn-sm btn-link text-success text-decoration-none" (click)="copyToClipboard(sc.senario)">
+                                <i class="bi bi-clipboard me-1"></i> Copier
+                            </button>
+                        </div>
+                        <pre class="bg-black text-light p-3 m-0 rounded-bottom" style="white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; border: 1px solid #1f2937;"><code>{{ sc.senario }}</code></pre>
+                     </div>
+                 </div>
+             </div>
+         </div>
+         <div class="text-center text-secondary py-4" *ngIf="!terminalScripts || terminalScripts.length === 0">
+             <div class="spinner-border text-secondary" role="status"></div>
+             <p class="mt-2">Chargement des scripts...</p>
+         </div>
+      </div>
+
+
+      <!-- ONGLET RESULTATS -->
+      <div *ngIf="terminalTab === 'results'" class="results-pane">
+          <div *ngIf="isExecutingTests" class="text-center py-5 text-success glow-pulse">
+              <div class="spinner-border mb-3" role="status"></div>
+              <h5>Tests en cours...</h5>
+              <p class="text-secondary glow-text">Connexion au moteur Pytest distant</p>
+          </div>
+
+          <div *ngIf="!isExecutingTests && testResults && !testResults.error">
+              <div class="result-summary d-flex justify-content-between align-items-center mb-4 p-3 rounded" style="background-color: rgba(25, 135, 84, 0.1); border: 1px solid rgba(25, 135, 84, 0.4);">
+                  <div>
+                      <span class="badge bg-success py-2 px-3 me-2 fs-6">✅ {{ testResults.passed || 0 }} PASSED</span>
+                      <span class="badge bg-danger py-2 px-3 me-2 fs-6" *ngIf="testResults.failed > 0">❌ {{ testResults.failed }} FAILED</span>
+                      <span class="badge bg-secondary py-2 px-3 fs-6">⏱ {{ testResults.duration || 0 }}s</span>
+                  </div>
+                  <div>
+                      <button *ngIf="testResults.pdf_base64" class="btn btn-light btn-sm text-dark fw-bold" (click)="downloadPdf()">
+                          <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Télécharger le Rapport PDF
+                      </button>
+                  </div>
+              </div>
+
+              <div class="result-details list-group">
+                  <div *ngFor="let det of testResults.details" class="list-group-item bg-black text-light border-secondary mb-2 rounded">
+                      <div class="d-flex justify-content-between align-items-center">
+                          <span class="fw-bold font-monospace"><i class="bi me-2" [ngClass]="{'bi-check-circle-fill text-success': det.status === 'PASSED', 'bi-x-circle-fill text-danger': det.status === 'FAILED'}"></i> {{ det.test }}</span>
+                          <span class="text-secondary small">{{ det.duration }}s</span>
+                      </div>
+                      <div *ngIf="det.status === 'FAILED' && det.error" class="text-danger mt-2 small p-2 font-monospace" style="background-color: rgba(220,53,69,0.1); border-left: 2px solid #dc3545;">
+                         {{ det.error }}
+                      </div>
+                  </div>
+              </div>
+              
+              <div *ngIf="testResults.output" class="mt-4">
+                  <h6 class="text-secondary mb-2 font-monospace">Logs Brut Pytest:</h6>
+                  <pre class="bg-black p-3 text-secondary rounded" style="font-size: 0.8rem; border: 1px solid #1f2937;">{{ testResults.output }}</pre>
+              </div>
+          </div>
+          
+          <div *ngIf="!isExecutingTests && testResults && testResults.error" class="text-center text-danger py-4">
+              <i class="bi bi-exclamation-triangle fs-1"></i>
+              <p class="mt-2">{{ testResults.message }}</p>
+          </div>
+          
+          <div *ngIf="!isExecutingTests && !testResults" class="text-center text-secondary py-5">
+              Clique sur "Exécuter les tests" dans l'onglet Scripts pour voir les résultats.
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
