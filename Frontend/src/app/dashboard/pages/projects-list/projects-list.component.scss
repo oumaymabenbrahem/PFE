@@ -96,9 +96,11 @@
     }
 
     &.status-termine {
-      background-color: rgba(25, 135, 84, 0.2);
-      border-color: rgba(25, 135, 84, 0.5);
-      color: #198754;
+      background-color: rgba(40, 167, 69, 0.25);
+      border-color: rgba(40, 167, 69, 0.7);
+      color: #28a745;
+      font-weight: 700;
+      text-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
     }
 
     &.status-erreur {
@@ -535,9 +537,11 @@
         }
 
         &.status-termine {
-          background-color: rgba(76, 175, 80, 0.2);
-          color: #4caf50;
-          border: 1px solid rgba(76, 175, 80, 0.5);
+          background-color: rgba(76, 175, 80, 0.25);
+          color: #66bb6a;
+          border: 1px solid rgba(76, 175, 80, 0.7);
+          font-weight: 700;
+          text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
         }
 
         &.status-erreur {
@@ -830,6 +834,15 @@
         line-height: 1.4;
       }
 
+      .scenario-desc {
+        color: #a9b1d6 !important;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        white-space: normal;
+        word-break: break-word;
+        font-weight: 500;
+      }
+
       .gherkin-code {
         margin: 0;
         background-color: #1a1b26;
@@ -920,9 +933,11 @@
       }
 
       &.status-termine {
-        background-color: rgba(76, 175, 80, 0.25);
-        color: #4caf50;
-        border-color: rgba(76, 175, 80, 0.5);
+        background-color: rgba(76, 175, 80, 0.3);
+        color: #66bb6a;
+        border-color: rgba(76, 175, 80, 0.7);
+        font-weight: 700;
+        text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
       }
 
       &.status-erreur {
@@ -1170,9 +1185,11 @@
         }
 
         &.status-termine {
-          background-color: rgba(76, 175, 80, 0.15);
-          color: #4caf50;
-          border: 1px solid rgba(76, 175, 80, 0.3);
+          background-color: rgba(76, 175, 80, 0.2);
+          color: #66bb6a;
+          border: 1px solid rgba(76, 175, 80, 0.5);
+          font-weight: 700;
+          text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
         }
 
         &.status-erreur {
@@ -1749,6 +1766,15 @@
         }
       }
     }
+
+    .scenario-desc {
+      color: #c0caf5 !important;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      white-space: normal;
+      word-break: break-word;
+      font-weight: 500;
+    }
   }
 }
 
@@ -1874,10 +1900,15 @@
       }
 
       .scenario-description {
-        color: #d8dee9 !important;
-        font-size: 0.86rem;
-        line-height: 1.45;
+        display: block;
+        color: #e8ecff !important;
+        font-size: 0.94rem;
+        line-height: 1.6;
         white-space: normal;
+        margin-top: 0.5rem;
+        opacity: 1;
+        font-weight: 500;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
       }
 
       .scenario-expected {
@@ -1887,6 +1918,12 @@
         white-space: normal;
       }
     }
+  }
+
+  // Override text-muted for better visibility in scenario descriptions
+  small.text-muted {
+    color: #d4d8d0 !important;
+    font-weight: 500;
   }
 
   .wt-metric-card {
@@ -2211,10 +2248,20 @@
           }
         }
 
+        .scenario-desc {
+          color: #4a4a42 !important;
+          font-size: 0.82rem;
+          line-height: 1.5;
+          white-space: normal;
+          word-break: break-word;
+          font-weight: 600;
+        }
+
         .text-muted {
-          color: #6f726b !important;
-          font-size: 0.72rem;
-          line-height: 1.3;
+          color: #4a4a42 !important;
+          font-size: 0.78rem;
+          line-height: 1.5;
+          font-weight: 600;
         }
       }
     }

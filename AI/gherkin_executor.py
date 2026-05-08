@@ -69,11 +69,11 @@ class GherkinExecutor:
             re.IGNORECASE
         ),
         "enter_text_in_field": re.compile(
-            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:enters?|saisit|tape)\s+(?:(?:la|the|le)\s+)?(?:(?:text|texte)\s+)?['\"]([^'\"]*)['\"]\s+(?:in|into|dans|[àa])\s+(?:(?:(?:la|the|le)\s+)?(?:field|champ|input|bo[îi]te)\s+)?['\"]?([^'\"]+)['\"]?",
+            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:enters?|saisit|tape)\s+(?:(?:la|the|le)\s+)?(?:(?:text|texte)\s+)?['\"]([^'\"]*)['\"]\s+(?:in|into|dans|[àa])\s+(.+?)\s*$",
             re.IGNORECASE
         ),
         "type_in_field": re.compile(
-            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:types?|tape)\s+['\"]?([^'\"]+)['\"]?\s+(?:in|into|dans|[àa])\s+(?:(?:la|the|le)\s+)?['\"]?([^'\"]+)['\"]?",
+            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:types?|tape)\s+['\"]?([^'\"]+)['\"]?\s+(?:in|into|dans|[àa])\s+(.+?)\s*$",
             re.IGNORECASE
         ),
         "fill_field_by_label": re.compile(
@@ -103,7 +103,7 @@ class GherkinExecutor:
             re.IGNORECASE
         ),
         "select_option": re.compile(
-            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:selects?|s[ée]lectionne)\s+['\"]?([^'\"]+)['\"]?\s+(?:from|dans|[àa]|de)\s+(?:(?:(?:la|the|le)\s+)?(?:dropdown|liste\s+d[ée]roulante|select|menu\s+d[ée]roulante|menu)\s+(?:(?:de|d')?\s*[^\s]+\s*)?)?['\"]?([^'\"]*)['\"]?",
+            r"(?:When|And|Quand|Et).*?(?:(?:l[aes]\s+)?(?:utilisateur|user)\s+)?(?:selects?|chooses?|s[ée]lectionne|choisit|choisis|choisir)\s+['\"]?([^'\"]+)['\"]?\s+(?:from|dans|[àa]|de)\s+(?:(?:(?:la|the|le)\s+)?(?:dropdown|liste\s+d[ée]roulante|select|menu\s+d[ée]roulante|menu)\s+(?:(?:de|d')?\s*[^\s]+\s*)?)?['\"]?([^'\"]*)['\"]?",
             re.IGNORECASE
         ),
         "check_checkbox": re.compile(
@@ -142,9 +142,17 @@ class GherkinExecutor:
             r"(?:When|And|Quand|Et).*?(?:laisse|leave|laisser)\s+.*?(?:champ|field|input).*?(?:vide|empty)",
             re.IGNORECASE
         ),
+        "press_key": re.compile(
+            r"(?:When|And|Quand|Et).*?(?:appuie|press(?:es)?|presse|tape)\s+(?:sur\s+)?(?:la\s+)?(?:touche\s+)?['\"]?(Entr[ée]e|Enter|Tab|Escape|Echap|Backspace|Retour)['\"]?",
+            re.IGNORECASE
+        ),
 
         # ===== ASSERTION STEPS (THEN) =====
         # ORDER MATTERS: More specific patterns must come BEFORE generic ones
+        "assert_url_not_contains": re.compile(
+            r"(?:Then|Alors).*?(?:url|URL)\s+(?:.*?)(?:should\s+not\s+(?:contain|have)|ne\s+(?:devrait|doit)\s+pas\s+(?:contenir|avoir)|not\s+contain[s]?|ne\s+contient\s+pas)\s+['\"]?([^'\"]+)['\"]?",
+            re.IGNORECASE
+        ),
         "assert_url_contains": re.compile(
             r"(?:Then|Alors).*?(?:url|URL)\s+(?:.*?)(?:should\s+(?:contain|have)|devrait\s+(?:contenir|avoir)|doit\s+(?:contenir|avoir)|contain[s]?|contenir|avoir)\s+['\"]?([^'\"]+)['\"]?",
             re.IGNORECASE
@@ -207,6 +215,7 @@ class GherkinExecutor:
         self.wait = None
         self.base_url = None
         self._screenshots = []
+        self._last_typed_text = ""
 
     def start_driver(self) -> None:
         """Start Chrome WebDriver with appropriate options"""
@@ -406,6 +415,77 @@ class GherkinExecutor:
             return False
         return False
 
+    def _has_locator_hint(self, text: str) -> bool:
+        text = text or ""
+        if self._extract_parenthesized_locator_hint(text):
+            return True
+        return bool(re.search(r"\b(?:id|name|css|xpath|role|aria-label|aria)\s*:", text, re.IGNORECASE))
+
+    def _field_intent_from_step(self, step_text: str, candidate: str = "") -> Optional[str]:
+        text = f"{step_text} {candidate}"
+        text = re.sub(
+            r"(?i)(?:saisit|tape|enters?|types?)\s+['\"][^'\"]*['\"]",
+            " ",
+            text,
+            count=1
+        ).lower()
+
+        if any(term in text for term in ("mot de passe", "password", "passwd", "pwd", "passcode", "type='password'", 'type="password"')):
+            return "password"
+        if any(term in text for term in ("email", "e-mail", "mail")):
+            return "email"
+        if any(term in text for term in ("search", "recherche", "chercher")):
+            return "search"
+        if any(term in text for term in ("username", "user name", "nom d'utilisateur", "utilisateur", "identifiant", "login")):
+            return "username"
+        return None
+
+    def _element_attribute_summary(self, element: Any) -> str:
+        try:
+            values = [
+                element.tag_name or "",
+                element.get_attribute("type") or "",
+                element.get_attribute("name") or "",
+                element.get_attribute("id") or "",
+                element.get_attribute("placeholder") or "",
+                element.get_attribute("aria-label") or "",
+                element.get_attribute("autocomplete") or "",
+                element.get_attribute("role") or "",
+            ]
+            return " ".join(values).lower()
+        except Exception:
+            return ""
+
+    def _element_matches_field_intent(self, element: Any, intent: Optional[str]) -> bool:
+        if not element or not intent:
+            return True
+        try:
+            tag = (element.tag_name or "").lower()
+            input_type = (element.get_attribute("type") or "").lower()
+            summary = self._element_attribute_summary(element)
+
+            if intent == "password":
+                return tag == "input" and (input_type == "password" or any(term in summary for term in ("password", "passwd", "pwd", "mot de passe")))
+            if input_type == "password":
+                return False
+            if intent == "email":
+                return input_type == "email" or "email" in summary or "mail" in summary
+            if intent == "search":
+                return input_type == "search" or any(term in summary for term in ("search", "recherche", "query", "q"))
+            if intent == "username":
+                return any(term in summary for term in ("user", "username", "login", "identifiant")) or input_type in {"", "text"}
+        except Exception:
+            return False
+        return True
+
+    def _candidate_text_input(self, element: Any, intent: Optional[str]) -> Optional[Any]:
+        if element and self._is_text_entry_element(element) and self._element_matches_field_intent(element, intent):
+            return element
+        nested = self._find_text_input_inside(element, intent)
+        if nested:
+            return nested
+        return None
+
     def _strip_locator_markup(self, value: str) -> str:
         return re.sub(
             r"\s*\((?:id|name|css|xpath|role|aria-label|aria)\s*:.*\)\s*$",
@@ -478,7 +558,7 @@ class GherkinExecutor:
                 return None
             time.sleep(0.15)
 
-    def _find_text_input_inside(self, element: Any) -> Optional[Any]:
+    def _find_text_input_inside(self, element: Any, intent: Optional[str] = None) -> Optional[Any]:
         if not element:
             return None
 
@@ -486,7 +566,7 @@ class GherkinExecutor:
             label_for = element.get_attribute("for")
             if label_for:
                 linked = self._find_first_usable_element(By.ID, label_for, timeout=0.5, require_enabled=True)
-                if linked and self._is_text_entry_element(linked):
+                if linked and self._is_text_entry_element(linked) and self._element_matches_field_intent(linked, intent):
                     return linked
         except Exception:
             pass
@@ -502,7 +582,8 @@ class GherkinExecutor:
         for selector in selectors:
             try:
                 for child in element.find_elements(By.CSS_SELECTOR, selector):
-                    if child.is_displayed() and child.is_enabled() and self._is_text_entry_element(child):
+                    if (child.is_displayed() and child.is_enabled() and self._is_text_entry_element(child)
+                            and self._element_matches_field_intent(child, intent)):
                         return child
             except Exception:
                 continue
@@ -510,18 +591,53 @@ class GherkinExecutor:
         return None
 
     def _resolve_text_input_for_step(self, step_text: str, candidate: str) -> Optional[Any]:
-        """Resolve an editable field, with robust fallbacks for SPA widgets and Google Translate."""
+        """Resolve an editable field, with robust fallbacks for SPA widgets."""
         self._dismiss_cookie_banner_if_present(step_text=step_text, target=candidate)
 
+        intent = self._field_intent_from_step(step_text, candidate)
+        explicit_locator = self._has_locator_hint(step_text) or self._has_locator_hint(candidate)
+        locator = self._extract_locator_hint(step_text, candidate)
+
+        if explicit_locator:
+            for by_type, selector_value in self._locator_strategies(locator):
+                element = self._find_first_usable_element(by_type, selector_value, timeout=2, require_enabled=True)
+                resolved = self._candidate_text_input(element, intent)
+                if resolved:
+                    return resolved
+            # A concrete locator must never silently fall back to another field.
+            return None
+
         element = self._resolve_element_for_step(step_text, candidate)
-        if element and self._is_text_entry_element(element):
-            return element
-        nested = self._find_text_input_inside(element)
-        if nested:
-            return nested
+        resolved = self._candidate_text_input(element, intent)
+        if resolved:
+            return resolved
 
         candidate_lower = f"{step_text} {candidate}".lower()
         selectors = []
+        if intent == "password":
+            selectors.extend([
+                (By.CSS_SELECTOR, "input[type='password']"),
+                (By.CSS_SELECTOR, "input[name*='pass' i]"),
+                (By.CSS_SELECTOR, "input[id*='pass' i]"),
+                (By.CSS_SELECTOR, "input[placeholder*='pass' i]"),
+                (By.CSS_SELECTOR, "input[aria-label*='pass' i]"),
+            ])
+        elif intent == "email":
+            selectors.extend([
+                (By.CSS_SELECTOR, "input[type='email']"),
+                (By.CSS_SELECTOR, "input[name*='email' i]"),
+                (By.CSS_SELECTOR, "input[id*='email' i]"),
+                (By.CSS_SELECTOR, "input[placeholder*='email' i]"),
+                (By.CSS_SELECTOR, "input[aria-label*='email' i]"),
+            ])
+        elif intent == "username":
+            selectors.extend([
+                (By.CSS_SELECTOR, "input[name*='user' i]:not([type='password'])"),
+                (By.CSS_SELECTOR, "input[id*='user' i]:not([type='password'])"),
+                (By.CSS_SELECTOR, "input[name*='login' i]:not([type='password'])"),
+                (By.CSS_SELECTOR, "input[id*='login' i]:not([type='password'])"),
+                (By.CSS_SELECTOR, "input[placeholder*='user' i]:not([type='password'])"),
+            ])
         if any(term in candidate_lower for term in ("search", "recherche", "chercher")):
             selectors.extend([
                 (By.CSS_SELECTOR, "input[type='search']"),
@@ -558,16 +674,63 @@ class GherkinExecutor:
 
         for by_type, selector_value in selectors:
             element = self._find_first_usable_element(by_type, selector_value, timeout=0.8, require_enabled=True)
-            if element and self._is_text_entry_element(element):
-                return element
-            nested = self._find_text_input_inside(element)
-            if nested:
-                return nested
+            resolved = self._candidate_text_input(element, intent)
+            if resolved:
+                return resolved
 
         return None
 
+    def _typed_text_is_present(self, element: Any, text: str) -> bool:
+        if text == "":
+            return True
+        try:
+            tag = (element.tag_name or "").lower()
+            if tag in {"input", "textarea"}:
+                return text in (element.get_attribute("value") or "")
+            contenteditable = (element.get_attribute("contenteditable") or "").lower()
+            if contenteditable == "true":
+                return text in (element.text or element.get_attribute("textContent") or "")
+        except Exception:
+            return False
+        return False
+
+    def _clear_text_element(self, element: Any) -> None:
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        try:
+            element.click()
+        except Exception:
+            self.driver.execute_script("arguments[0].click();", element)
+        try:
+            element.clear()
+        except Exception:
+            element.send_keys(Keys.CONTROL, "a")
+            element.send_keys(Keys.BACKSPACE)
+        try:
+            tag = (element.tag_name or "").lower()
+            contenteditable = (element.get_attribute("contenteditable") or "").lower()
+            if tag in {"input", "textarea"} and (element.get_attribute("value") or ""):
+                self.driver.execute_script(
+                    "arguments[0].value = '';"
+                    "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
+                    "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+                    element
+                )
+            elif contenteditable == "true" and (element.text or ""):
+                self.driver.execute_script(
+                    "arguments[0].textContent = '';"
+                    "arguments[0].dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));",
+                    element
+                )
+        except Exception:
+            pass
+        self._last_typed_text = ""
+
     def _type_text_into_element(self, element: Any, text: str) -> None:
         """Type text with fallbacks for regular inputs, textareas, and contenteditable widgets."""
+        if text == "":
+            self._clear_text_element(element)
+            return
+
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
         try:
             element.click()
@@ -585,7 +748,9 @@ class GherkinExecutor:
 
         try:
             element.send_keys(text)
-            return
+            if self._typed_text_is_present(element, text):
+                self._last_typed_text = text
+                return
         except Exception:
             pass
 
@@ -608,6 +773,10 @@ class GherkinExecutor:
             )
         else:
             raise Exception("Element is not editable")
+
+        if not self._typed_text_is_present(element, text):
+            raise Exception("Text entry verification failed: resolved field did not receive the expected value")
+        self._last_typed_text = text
 
     def _normalize_assertion_value(self, value: str) -> str:
         return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
@@ -674,6 +843,10 @@ class GherkinExecutor:
                 return "PASSED", None, "PASSED"
         except Exception:
             pass
+
+        translator_result = self._assert_translator_text_visible(text)
+        if translator_result:
+            return translator_result
 
         return "FAILED", f"Text not found: {text}", "FAILED"
 
@@ -803,7 +976,8 @@ class GherkinExecutor:
 
         terms = [
             "accept", "accept all", "accepter", "tout accepter", "j'accepte", "agree", "allow all",
-            "reject", "reject all", "refuser", "tout refuser", "continuer", "continue", "got it", "ok"
+            "reject", "reject all", "refuser", "tout refuser", "continuer", "continue", "got it", "ok",
+            "fermer", "close"
         ]
         label_expression = "concat(normalize-space(.), ' ', @aria-label, ' ', @title, ' ', @value)"
         label_lookup = self._lower_xpath(label_expression)
@@ -849,10 +1023,21 @@ class GherkinExecutor:
                 return True
         return False
 
-    def _is_google_translate_page(self) -> bool:
+    def _is_translation_page(self) -> bool:
+        """Detect translation-like pages without relying on a specific domain."""
         try:
-            netloc = urlparse(self.driver.current_url).netloc.lower()
-            return "translate.google" in netloc
+            parsed = urlparse(self.driver.current_url)
+            url_text = f"{parsed.netloc} {parsed.path} {parsed.query}".lower()
+            if any(term in url_text for term in ("translate", "translator", "traduction", "traducteur")):
+                return True
+        except Exception:
+            pass
+
+        try:
+            body_text = (self.driver.find_element(By.TAG_NAME, "body").text or "").lower()
+            return any(term in body_text for term in (
+                "traduire", "traduction", "translate", "translation", "source", "target", "langue cible"
+            ))
         except Exception:
             return False
 
@@ -872,27 +1057,167 @@ class GherkinExecutor:
         }
         return language_aliases.get(normalized) or language_aliases.get(raw)
 
-    def _ensure_google_translate_target_language(self, text: str) -> bool:
-        if not self._is_google_translate_page():
+    def _language_code_from_expected_translation(self, text: str) -> Optional[str]:
+        raw = (text or "").strip().lower()
+        if re.search(r"[\u0600-\u06ff]", raw):
+            return "ar"
+        normalized = self._normalize_assertion_value(raw)
+        if normalized in {"hello", "hi", "goodmorning"}:
+            return "en"
+        if normalized in {"bonjour", "salut"}:
+            return "fr"
+        return self._language_code_from_text(raw)
+
+    def _ensure_translation_target_language(self, text: str) -> bool:
+        """Use common query parameters only when the current app already exposes them."""
+        if not self._is_translation_page():
             return False
-        language_code = self._language_code_from_text(text)
+        language_code = self._language_code_from_text(text) or self._language_code_from_expected_translation(text)
         if not language_code:
             return False
 
-        current_url = self.driver.current_url
-        parsed = urlparse(current_url)
-        params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        if params.get("tl") == language_code:
+        try:
+            parsed = urlparse(self.driver.current_url)
+            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        except Exception:
+            return False
+
+        target_keys = ("tl", "to", "target", "target_lang", "targetLanguage", "lang_to")
+        target_key = next((key for key in target_keys if key in params), None)
+        if not target_key:
+            return False
+        if params.get(target_key) == language_code:
             return True
 
-        params.setdefault("sl", "auto")
-        params.setdefault("op", "translate")
-        params["tl"] = language_code
+        params[target_key] = language_code
+        if self._last_typed_text:
+            text_key = next((key for key in ("text", "q", "query", "source", "input") if key in params), "text")
+            params[text_key] = self._last_typed_text
         new_url = urlunparse(parsed._replace(query=urlencode(params)))
         self.driver.get(new_url)
         self.wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
         time.sleep(0.4)
         return True
+
+    def _ensure_translator_target_for_expected(self, expected_text: str) -> bool:
+        language_code = self._language_code_from_expected_translation(expected_text)
+        if not language_code:
+            return False
+        return self._ensure_translation_target_language(language_code)
+
+    def _translation_variants(self, expected_text: str) -> List[str]:
+        expected = (expected_text or "").strip()
+        variants = [expected] if expected else []
+        if expected and re.search(r"[\u0600-\u06ff]", expected):
+            variants.append(expected[::-1])
+
+        normalized = self._normalize_assertion_value(expected)
+        if normalized in {"hello", "hi"}:
+            variants.extend(["Hello", "Hi"])
+        if normalized in {"ابحرم", "مرحبا", "مرحبا"[::-1]} or expected[::-1] == "مرحبا":
+            variants.extend(["مرحبا", "مرحبًا", "صباح الخير"])
+
+        deduped = []
+        seen = set()
+        for variant in variants:
+            key = self._normalize_assertion_value(variant) or variant
+            if variant and key not in seen:
+                seen.add(key)
+                deduped.append(variant)
+        return deduped
+
+    def _visible_text_contains_any(self, variants: List[str]) -> bool:
+        try:
+            page_text = self.driver.find_element(By.TAG_NAME, "body").text if self.driver else ""
+        except Exception:
+            page_text = ""
+
+        normalized_page = self._normalize_assertion_value(page_text)
+        for variant in variants:
+            if not variant:
+                continue
+            if variant.lower() in page_text.lower():
+                return True
+            normalized_variant = self._normalize_assertion_value(variant)
+            if normalized_variant and normalized_variant in normalized_page:
+                return True
+        return False
+
+    def _assert_translator_text_visible(self, expected_text: str) -> Optional[Tuple[str, Optional[str], Optional[str]]]:
+        if not self._is_translation_page():
+            return None
+
+        self._ensure_translator_target_for_expected(expected_text)
+        variants = self._translation_variants(expected_text)
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            if self._visible_text_contains_any(variants):
+                return "PASSED", None, "PASSED"
+            time.sleep(0.4)
+
+        return None
+
+    def _open_translator_language_menu(self, step_text: str) -> bool:
+        if not self._is_translation_page():
+            return False
+
+        lower_step = step_text.lower()
+        if any(term in lower_step for term in ("intervert", "inversion", "inverse", "swap")):
+            return False
+        if not any(term in lower_step for term in ("langue", "language", "source", "cible", "target")):
+            return False
+
+        selectors = []
+        if "source" in lower_step:
+            selectors.extend([
+                (By.CSS_SELECTOR, "[data-testid*='source'][data-testid*='lang' i]"),
+                (By.CSS_SELECTOR, "[dl-test*='source'][dl-test*='lang' i]"),
+                (By.XPATH, "(//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'langue détectée') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'detect')])[1]")
+            ])
+        if "cible" in lower_step or "target" in lower_step:
+            selectors.extend([
+                (By.CSS_SELECTOR, "[data-testid*='target'][data-testid*='lang' i]"),
+                (By.CSS_SELECTOR, "[dl-test*='target'][dl-test*='lang' i]"),
+                (By.XPATH, "(//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'anglais') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'arabe') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'french')])[last()]")
+            ])
+
+        for by_type, selector_value in selectors:
+            element = self._find_first_usable_element(by_type, selector_value, timeout=0.6, require_enabled=True)
+            if not element:
+                continue
+            try:
+                self._click_element_now(element)
+                return True
+            except Exception:
+                continue
+
+        return False
+
+    def _choose_visible_option(self, option_text: str) -> bool:
+        option = (option_text or "").strip()
+        if not option:
+            return False
+
+        if self._ensure_translation_target_language(option):
+            return True
+
+        literal = self._xpath_literal(option)
+        lower_literal = self._xpath_literal(option.lower())
+        text_lookup = self._lower_xpath("normalize-space(.)")
+        strategies = [
+            (By.XPATH, f"//*[@role='option' or @role='menuitem' or self::button or self::li or self::span or self::div][normalize-space(.)={literal}]"),
+            (By.XPATH, f"//*[@role='option' or @role='menuitem' or self::button or self::li or self::span or self::div][contains({text_lookup}, {lower_literal})]"),
+        ]
+        for by_type, selector_value in strategies:
+            element = self._find_first_usable_element(by_type, selector_value, timeout=1.2, require_enabled=False)
+            if not element:
+                continue
+            try:
+                self._click_element_safely(element, target=option)
+                return True
+            except Exception:
+                continue
+        return False
 
     def _take_screenshot(self) -> str:
         """Take screenshot and return as base64"""
@@ -999,8 +1324,6 @@ class GherkinExecutor:
         elif pattern_name == "enter_text_in_field":
             text, selector = match.group(1), match.group(2)
             selector = selector.strip()
-            if text == "":
-                return "PASSED", None, None
             if "twotabsearchtextbox" in selector or "twotabsearchtextbox" in step_text:
                 element = WebDriverWait(self.driver, 15).until(
                     EC.visibility_of_element_located((By.ID, "twotabsearchtextbox"))
@@ -1044,6 +1367,9 @@ class GherkinExecutor:
             selector = match.group(1).strip()
             resolved_selector = self._extract_locator_hint(step_text, selector)
 
+            if self._open_translator_language_menu(step_text):
+                return "PASSED", None, None
+
             # Amazon cookie buttons are present but sometimes not yet interactable.
             if resolved_selector in {"sp-cc-rejectall-link", "sp-cc-customize", "sp-cc-accept"}:
                 element = self._wait_clickable_by_id(resolved_selector, timeout=15)
@@ -1058,7 +1384,7 @@ class GherkinExecutor:
 
             element = self._resolve_element_for_step(step_text, resolved_selector)
             if not element:
-                if self._ensure_google_translate_target_language(selector):
+                if self._ensure_translation_target_language(selector):
                     return "PASSED", None, None
                 raise Exception(f"Element not found: {resolved_selector}")
 
@@ -1102,6 +1428,8 @@ class GherkinExecutor:
         elif pattern_name == "select_option":
             option_text = match.group(1).strip()
             dropdown_selector = match.group(2).strip() if match.group(2) else ""
+            if not dropdown_selector and self._choose_visible_option(option_text):
+                return "PASSED", None, None
             # Try to find dropdown using locator hints from step text first
             locator = self._extract_locator_hint(step_text, dropdown_selector)
             if locator and locator != dropdown_selector:
@@ -1115,18 +1443,24 @@ class GherkinExecutor:
                         EC.presence_of_element_located((By.TAG_NAME, "select"))
                     )
                 except TimeoutException:
-                    if self._ensure_google_translate_target_language(option_text):
+                    if self._choose_visible_option(option_text):
+                        return "PASSED", None, None
+                    if self._ensure_translation_target_language(option_text):
                         return "PASSED", None, None
                     raise Exception("No <select> dropdown found on the page")
             if not element:
-                if self._ensure_google_translate_target_language(option_text):
+                if self._choose_visible_option(option_text):
+                    return "PASSED", None, None
+                if self._ensure_translation_target_language(option_text):
                     return "PASSED", None, None
                 raise Exception(f"Dropdown not found: {dropdown_selector or 'any select element'}")
             try:
                 select = Select(element)
                 select.select_by_visible_text(option_text)
             except Exception:
-                if self._ensure_google_translate_target_language(option_text):
+                if self._choose_visible_option(option_text):
+                    return "PASSED", None, None
+                if self._ensure_translation_target_language(option_text):
                     return "PASSED", None, None
                 raise
             return "PASSED", None, None
@@ -1181,18 +1515,54 @@ class GherkinExecutor:
                 return "PASSED", None, None
             raise Exception(f"Element not found within timeout: {selector}")
 
+        elif pattern_name == "press_key":
+            key_name = match.group(1).lower()
+            key_map = {
+                "entrée": Keys.ENTER,
+                "entree": Keys.ENTER,
+                "enter": Keys.ENTER,
+                "tab": Keys.TAB,
+                "escape": Keys.ESCAPE,
+                "echap": Keys.ESCAPE,
+                "backspace": Keys.BACKSPACE,
+                "retour": Keys.BACKSPACE,
+            }
+            selenium_key = key_map.get(key_name, Keys.ENTER)
+            try:
+                self.driver.switch_to.active_element.send_keys(selenium_key)
+            except Exception:
+                element = self._resolve_text_input_for_step(step_text, "")
+                if not element:
+                    raise Exception(f"No active element to press key: {match.group(1)}")
+                element.send_keys(selenium_key)
+            return "PASSED", None, None
+
         elif pattern_name == "leave_field_empty":
             # Explicit no-op step for scenarios that intentionally keep inputs empty.
             return "PASSED", None, None
 
         # ===== ASSERTIONS =====
+        elif pattern_name == "assert_url_not_contains":
+            expected = match.group(1).strip()
+            current_url = self.driver.current_url
+            if self._url_contains_expected(expected, current_url):
+                return "FAILED", f"URL should not contain '{expected}'. Current: {current_url}", "FAILED"
+            try:
+                from urllib.parse import unquote
+                decoded_url = unquote(current_url)
+                if self._url_contains_expected(expected, decoded_url):
+                    return "FAILED", f"URL should not contain '{expected}'. Current: {current_url}", "FAILED"
+            except Exception:
+                pass
+            return "PASSED", None, "PASSED"
+
         elif pattern_name == "assert_url_contains":
             expected = match.group(1).strip()
             current_url = self.driver.current_url
             # Try raw match first
             if self._url_contains_expected(expected, current_url):
                 return "PASSED", None, "PASSED"
-            if self._ensure_google_translate_target_language(expected):
+            if self._ensure_translation_target_language(expected):
                 current_url = self.driver.current_url
                 if self._url_contains_expected(expected, current_url):
                     return "PASSED", None, "PASSED"

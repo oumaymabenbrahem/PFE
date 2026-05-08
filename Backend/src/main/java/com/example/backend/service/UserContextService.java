@@ -26,7 +26,8 @@ public class UserContextService {
     @Autowired
     private ProjectRepository projectRepository;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /**
      * Extract user context for AI responses

@@ -19,3 +19,9 @@ dist/
 # IDE
 .idea/
 .vscode/
+node_modules/ 
+AI/results/ 
+AI/codet5_finetuned_selenium/ 
+*.bin 
+*.pt 
+*.pkl 

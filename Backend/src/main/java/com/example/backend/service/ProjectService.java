@@ -64,6 +64,9 @@ public class ProjectService {
     @Autowired
     private TestExecutionResultRepository testExecutionResultRepository;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
 
     private final List<String> ALLOWED_EXTENSIONS = Arrays.asList("zip", "html", "java", "py", "txt");
 
@@ -362,8 +365,7 @@ public class ProjectService {
         List<Map<String, Object>> parsedScenarios = new ArrayList<>();
         if (scenariosJson != null && !scenariosJson.isEmpty() && !scenariosJson.equals("[]")) {
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                parsedScenarios = mapper.readValue(scenariosJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+                parsedScenarios = objectMapper.readValue(scenariosJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
             } catch (Exception e) {
                 log.error("Erreur de parsing des scénarios sauvegardés: ", e);
             }
@@ -494,7 +496,6 @@ public class ProjectService {
                 ));
 
                 // Sauvegarder en base
-                ObjectMapper mapper = new ObjectMapper();
                 TestScript fallbackScript = TestScript.builder()
                         .project(project)
                         .scriptContent("# Scénarios génériques (page sans éléments interactifs détectables)\n# URL: " + specificationContenu)
@@ -502,7 +503,7 @@ public class ProjectService {
                         .statut("GENERE_FALLBACK")
                         .elementsCount(0)
                         .build();
-                fallbackScript.setScenarios(mapper.writeValueAsString(fallbackScenarios));
+                fallbackScript.setScenarios(objectMapper.writeValueAsString(fallbackScenarios));
                 testScriptRepository.save(fallbackScript);
                 
                 project.setStatut(ProjectStatus.TERMINE);
@@ -538,8 +539,7 @@ public class ProjectService {
                 ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
                 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    Map<String, Object> result = mapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                    Map<String, Object> result = objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
                     
                     List<Map<String, String>> scenariosObj = (List<Map<String, String>>) result.get("scenarios");
                     
@@ -552,7 +552,7 @@ public class ProjectService {
                             .elementsCount(scenariosObj != null ? scenariosObj.size() : 0)
                             .build();
                     
-                    testScript.setScenarios(mapper.writeValueAsString(scenariosObj));
+                    testScript.setScenarios(objectMapper.writeValueAsString(scenariosObj));
                     testScriptRepository.save(testScript);
                     
                     project.setStatut(ProjectStatus.TERMINE);
@@ -583,8 +583,7 @@ public class ProjectService {
                 ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, requestEntity, String.class);
                 
                 if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    Map<String, Object> result = mapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                    Map<String, Object> result = objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
                     
                     List<Map<String, String>> scenariosObj = (List<Map<String, String>>) result.get("scenarios");
                     
@@ -593,7 +592,7 @@ public class ProjectService {
                         // Récupération correcte de SCÉNARIOS ML ou PYTHON SCRIPT
                         elementsJson = (String) result.get("python_script");
                         if (elementsJson == null || elementsJson.isEmpty() || elementsJson.startsWith("# Erreur") || elementsJson.startsWith("# CodeT5 n'est pas")) {
-                            elementsJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(elementsInteractifs);
+                            elementsJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(elementsInteractifs);
                         }
                     } catch(Exception e) {
                         elementsJson = "[]";
@@ -609,7 +608,7 @@ public class ProjectService {
                             .build();
                     
                     // Sauvgarder les scénarios ML dans le JSON "scenarios" 
-                    testScript.setScenarios(mapper.writeValueAsString(scenariosObj));
+                    testScript.setScenarios(objectMapper.writeValueAsString(scenariosObj));
                     testScriptRepository.save(testScript);
                     
                     project.setStatut(ProjectStatus.TERMINE);
@@ -679,8 +678,7 @@ public class ProjectService {
                     throw new RuntimeException("Aucun scénario trouvé pour ce projet");
                 }
 
-                ObjectMapper mapper = new ObjectMapper();
-                List<Map<String, Object>> allScenarios = mapper.readValue(scenariosJson,
+                List<Map<String, Object>> allScenarios = objectMapper.readValue(scenariosJson,
                     new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
 
                 // Filter to selected scenarios (or all if selectedScenarioIds is empty/null)
@@ -728,7 +726,7 @@ public class ProjectService {
                 ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    Map<String, Object> executionResult = mapper.readValue(response.getBody(),
+                    Map<String, Object> executionResult = objectMapper.readValue(response.getBody(),
                         new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
 
                     Object summaryObj = executionResult.get("summary");
@@ -750,14 +748,14 @@ public class ProjectService {
                     String scenarioResultsJson = null;
                     Object scenariosResultsObj = executionResult.get("scenarios_results");
                     if (scenariosResultsObj != null) {
-                        scenarioResultsJson = mapper.writeValueAsString(scenariosResultsObj);
+                        scenarioResultsJson = objectMapper.writeValueAsString(scenariosResultsObj);
                     }
 
-                    String summaryJson = mapper.writeValueAsString(summary);
+                    String summaryJson = objectMapper.writeValueAsString(summary);
                     String logsJson = null;
                     Object executionLogsObj = executionResult.get("execution_logs");
                     if (executionLogsObj != null) {
-                        logsJson = mapper.writeValueAsString(executionLogsObj);
+                        logsJson = objectMapper.writeValueAsString(executionLogsObj);
                     }
 
                     // Save execution result to database (required for reliable metrics after restart)
@@ -801,8 +799,7 @@ public class ProjectService {
                 ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    return mapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                    return objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
                 } else {
                     throw new RuntimeException("Erreur API Python BDD");
                 }
@@ -862,8 +859,7 @@ public class ProjectService {
                 // Parse scenario results JSON first (most detailed source)
                 String scenarioResultsJson = latest.getScenarioResults();
                 if (scenarioResultsJson != null && !scenarioResultsJson.isEmpty()) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    List<Map<String, Object>> scenarioResults = mapper.readValue(scenarioResultsJson,
+                    List<Map<String, Object>> scenarioResults = objectMapper.readValue(scenarioResultsJson,
                         new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
 
                     int passed = 0, failed = 0;
@@ -884,8 +880,7 @@ public class ProjectService {
                     // Fallback to persisted summary if detailed scenario list is absent.
                     String summaryJson = latest.getAssertionResults();
                     if (summaryJson != null && !summaryJson.isEmpty()) {
-                        ObjectMapper mapper = new ObjectMapper();
-                        Map<String, Object> summary = mapper.readValue(summaryJson,
+                        Map<String, Object> summary = objectMapper.readValue(summaryJson,
                             new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
 
                         metrics.put("total", ((Number) summary.getOrDefault("total", 0)).intValue());
@@ -963,7 +958,6 @@ public class ProjectService {
             Project project = projectRepository.findById(projectId)
                     .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
 
-            ObjectMapper mapper = new ObjectMapper();
 
             TestExecutionResult result = TestExecutionResult.builder()
                     .testScript(testScript)
@@ -971,11 +965,11 @@ public class ProjectService {
                     .status((String) executionResult.getOrDefault("status", "PENDING"))
                     .executedAt(LocalDateTime.now())
                     .executionDurationMs((Long) executionResult.getOrDefault("executionDurationMs", 0L))
-                    .scenarioResults(mapper.writeValueAsString(
+                    .scenarioResults(objectMapper.writeValueAsString(
                             executionResult.getOrDefault("scenarios", new ArrayList<>())))
-                    .assertionResults(mapper.writeValueAsString(
+                    .assertionResults(objectMapper.writeValueAsString(
                             executionResult.getOrDefault("assertions", new HashMap<>())))
-                    .performanceMetrics(mapper.writeValueAsString(
+                    .performanceMetrics(objectMapper.writeValueAsString(
                             executionResult.getOrDefault("performanceMetrics", new HashMap<>())))
                     .logs((String) executionResult.getOrDefault("logs", ""))
                     .errorDetails((String) executionResult.getOrDefault("error", ""))

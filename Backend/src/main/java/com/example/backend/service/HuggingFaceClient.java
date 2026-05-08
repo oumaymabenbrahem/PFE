@@ -36,9 +36,9 @@ public class HuggingFaceClient {
     @Value("${huggingface.endpoint:https://api-inference.huggingface.co/v1/chat/completions}")
     private String endpoint;
 
-    public HuggingFaceClient() {
+    public HuggingFaceClient(ObjectMapper objectMapper) {
         this.restTemplate = new RestTemplate();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     /**

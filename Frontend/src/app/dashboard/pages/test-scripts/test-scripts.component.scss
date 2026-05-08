@@ -84,17 +84,22 @@
 
 .workspace-grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .panel {
 	min-height: 450px;
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
 }
 
 .panel-editor {
 	border-right: 1px solid #263359;
+}
+
+.panel-preview {
+	min-width: 0;
 }
 
 .panel-header {
@@ -135,6 +140,7 @@
 textarea {
 	width: 100%;
 	flex: 1;
+	min-width: 0;
 	border: none;
 	outline: none;
 	resize: none;
@@ -156,6 +162,8 @@ textarea {
 	margin: 0;
 	padding: 1rem;
 	flex: 1;
+	min-width: 0;
+	width: 100%;
 	overflow-x: auto;
 	overflow-y: auto;
 	overflow-wrap: normal;
@@ -168,7 +176,8 @@ textarea {
 .panel-preview code {
 	white-space: pre;
 	display: block;
-	min-width: max-content;
+	min-width: 0;
+	width: 100%;
 	color: #eaf2ff;
 	font-family: 'Consolas', 'Courier New', monospace;
 	font-size: 1rem;

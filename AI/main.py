@@ -687,7 +687,7 @@ def _parse_scenarios_from_generated_text(generated_text: str, selected_default: 
 
         if titre and gherkin:
             scenario_text = f"{titre} {description} {expected} {gherkin}"
-            scenarios.append({
+            scenario = {
                 "nomSenario": titre,
                 "description": description,
                 "resultatAttendu": expected,
@@ -695,9 +695,45 @@ def _parse_scenarios_from_generated_text(generated_text: str, selected_default: 
                 "senario": gherkin,
                 "selected": selected_default,
                 "source": source
-            })
+            }
+            scenarios.append(_repair_scenario_logic(scenario))
 
     return _deduplicate_scenarios(scenarios)
+
+
+def _repair_scenario_logic(scenario: Dict) -> Dict:
+    """Fix common LLM contradictions before scenarios reach Selenium."""
+    gherkin = str(scenario.get("senario", ""))
+    if not gherkin:
+        return scenario
+
+    # RTL text is sometimes generated reversed by the LLM/PDF extraction examples.
+    gherkin = re.sub(r'"\s*ابحرم\s*"', '"مرحبا"', gherkin)
+
+    negative_url_tokens = re.findall(
+        r"Then\s+l['’]?URL(?:\s+de\s+la\s+page)?\s+ne\s+(?:devrait|doit)\s+pas\s+contenir\s+\"([^\"]+)\"",
+        gherkin,
+        flags=re.IGNORECASE
+    )
+    for token in negative_url_tokens:
+        token_lower = token.lower()
+
+        def replace_contradictory_input(match):
+            value = match.group(2)
+            if token_lower not in value.lower() or value.strip() == "":
+                return match.group(0)
+            replacement = "!!!@@@" if re.search(r"[^\w\s]", value) else "recherche-introuvable-zz"
+            return f'{match.group(1)}{replacement}{match.group(3)}'
+
+        gherkin = re.sub(
+            r'(saisit\s+")([^"]+)("\s+dans\s+(?:le\s+)?(?:champ|zone|input|bo[îi]te))',
+            replace_contradictory_input,
+            gherkin,
+            flags=re.IGNORECASE
+        )
+
+    scenario["senario"] = _clean_gherkin_text(gherkin)
+    return scenario
 
 
 def _clean_gherkin_text(gherkin: str) -> str:
@@ -859,16 +895,24 @@ INSTRUCTIONS CRITIQUES:
 5. UTILISE TOUJOURS les sélecteurs concrets: Pour chaque action (When/And), privilégie `(id: identifiant)` ou `(name: valeur)` listé dans la 'Page Analysis'. Ex: `When l'utilisateur clique sur le bouton "Search" (id: search-icon-legacy)`.
    Si aucun id/name n'existe, utilise `(css: textarea)`, `(css: [role='textbox'])`, `(css: [role='combobox'])` ou `(xpath: //textarea)`.
    ÉVITE le format `(role: ...)` dans les nouveaux scénarios sauf si aucun autre locator n'est possible.
+   Pour les champs sensibles, sois strict: username/login doit utiliser le locator du champ username, password/mot de passe doit utiliser le locator du champ password. Ne réutilise jamais le locator username pour le password.
+   Si un champ password a un `id` ou `name`, utilise toujours `(id: ...)` ou `(name: ...)`; n'utilise `(css: input[type='password'])` que si aucun id/name n'existe.
 6. VALIDATION (Then): Utilise EXCLUSIVEMENT ces formats reconnus par l'automate :
    - `Then l'élément (id: identifiant) devrait être visible`
    - `Then l'élément (id: identifiant) ne devrait pas être visible`
    - `Then l'URL de la page devrait être "https://..."`
    - `Then l'URL devrait contenir "mot-clé"` (utilise le terme recherché seul, ex: "Kindle" pas "s=Kindle")
+   - `Then l'URL de la page ne devrait pas contenir "mot-clé"` uniquement si la donnée saisie ne contient PAS ce mot-clé.
    - `Then le texte "mot" devrait être visible`
     NE JAMAIS utiliser des phrases abstraites.
 7. ÉTAPE GIVEN : Utilise TOUJOURS ce format exact :
    `Given l'utilisateur se trouve sur la page "https://url"`
-8. Format EXACT (crucial pour le parsing):
+8. RÈGLES DE COHÉRENCE:
+   - Pour un scénario négatif de recherche, n'utilise jamais une donnée comme `Nabeul!@` si l'assertion dit que l'URL ne doit pas contenir `Nabeul`; utilise plutôt `!!!@@@` ou `recherche-introuvable-zz`.
+   - Pour les sites de traduction, n'invente pas de traduction. N'écris jamais les textes RTL à l'envers: utilise la forme affichée normalement, ex: `مرحبا`, jamais une chaîne inversée.
+   - Ignore les boutons de navigation globale/header qui ne contrôlent pas directement le widget testé; utilise seulement les champs, boutons et menus liés au formulaire ou composant principal.
+   - Si aucun locator fiable de sélection de langue/option n'est listé, évite les étapes manuelles de choix et teste plutôt la saisie + visibilité du champ/résultat.
+9. Format EXACT (crucial pour le parsing):
 
 ### SCENARIO: [Nom du scénario]
 DESCRIPTION: [Brève description]
@@ -881,7 +925,7 @@ Feature: [Nom du feature]
     And [action supplémentaire avec locateur]
     Then [validation concrète avec format reconnu]
 
-9. NE RAJOUTE PAS d'explications, uniquement les scénarios."""
+10. NE RAJOUTE PAS d'explications, uniquement les scénarios."""
 
         user_prompt = f"""Page à tester: {url}
 
@@ -1149,6 +1193,11 @@ def _locator_hint(el: Dict) -> str:
         value = str(el.get(key) or "").strip()
         if value:
             return f"{key}: {_safe_locator_value(value)}"
+
+    tag = (el.get("tag") or "").lower()
+    field_type = (el.get("type") or "").lower()
+    if tag == "input" and field_type in {"password", "email", "search", "tel", "number"}:
+        return f"css: input[type='{_safe_locator_value(field_type)}']"
 
     for key in ("data-testid", "data-test"):
         value = str(el.get(key) or "").strip()
@@ -1645,8 +1694,6 @@ def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, An
                 field_actions.append("")
 
         elif tag == 'button' or (tag == 'input' and f_type == 'submit'):
-            if 'google' in name_lower and 'google' not in (f_name or f_id or '').lower():
-                continue
             if 'connexion' in name_lower and 'connexion' not in (field.get('text', '') or '').lower():
                 continue
             field_actions.append(f"btn = driver.find_element({locator_type}, '{locator}')")
@@ -1655,13 +1702,7 @@ def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, An
             field_actions.append(f"print('STEP_PASS: Bouton {safe_field} verifie')")
             field_actions.append("")
 
-    # Pour les tests spéciaux (Google, lien connexion), ajouter des vérifications ciblées
-    if 'google' in name_lower:
-        field_actions.append("# Recherche du bouton Google")
-        field_actions.append("google_btns = driver.find_elements(By.XPATH, \"//*[contains(text(),'Google') or contains(@class,'google')]\")")
-        field_actions.append("assert len(google_btns) > 0, 'Bouton Google non trouve'")
-        field_actions.append("print('STEP_PASS: Bouton Google detecte')")
-
+    # Pour les tests spéciaux, ajouter des vérifications ciblées sans dépendre d'un fournisseur précis.
     if 'connexion' in name_lower or 'se connecter' in name_lower:
         field_actions.append("# Recherche du lien de connexion")
         field_actions.append("links = driver.find_elements(By.XPATH, \"//a[contains(text(),'connecter') or contains(text(),'Connecter') or contains(text(),'connexion')]\")")

@@ -4,7 +4,7 @@
     <div class="col-auto">
       <button class="btn btn-new-project" (click)="createNewProject()" [disabled]="isLoading">
         <i class="bi bi-plus-circle me-2"></i>
-        Nouveau Projet
+        Nouveau EspaTest
       </button>
     </div>
   </div>
@@ -64,7 +64,7 @@
         <!-- En-tête de la carte -->
         <div class="card-header-custom">
           <div class="status-badge" [ngClass]="'status-' + project.statut.toLowerCase()">
-            {{ project.statut }}
+            <i *ngIf="project.statut === 'TERMINE'" class="bi bi-check-circle-fill me-1"></i>{{ project.statut === 'TERMINE' ? 'Terminé' : project.statut === 'EN_COURS' ? 'En cours' : project.statut === 'EN_ATTENTE' ? 'En attente' : project.statut }}
           </div>
           <div class="card-actions" dropdown>
             <button class="btn-icon" data-bs-toggle="dropdown" aria-expanded="false">
@@ -217,7 +217,7 @@
     <!-- En-tête avec statut -->
     <div class="details-header" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
       <span class="status-badge" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
-        {{ selectedProjectForDetails.statut }}
+        <i *ngIf="selectedProjectForDetails.statut === 'TERMINE'" class="bi bi-check-circle-fill me-1"></i>{{ selectedProjectForDetails.statut === 'TERMINE' ? 'Terminé' : selectedProjectForDetails.statut === 'EN_COURS' ? 'En cours' : selectedProjectForDetails.statut === 'EN_ATTENTE' ? 'En attente' : selectedProjectForDetails.statut }}
       </span>
       <button class="btn-close-modal" (click)="closeProjectDetailsModal()">
         <i class="bi bi-x"></i>
@@ -301,7 +301,7 @@
         <div class="status-item">
           <span class="status-label">Statut</span>
           <span class="status-badge" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
-            {{ selectedProjectForDetails.statut }}
+            <i *ngIf="selectedProjectForDetails.statut === 'TERMINE'" class="bi bi-check-circle-fill me-1"></i>{{ selectedProjectForDetails.statut === 'TERMINE' ? 'Terminé' : selectedProjectForDetails.statut === 'EN_COURS' ? 'En cours' : selectedProjectForDetails.statut === 'EN_ATTENTE' ? 'En attente' : selectedProjectForDetails.statut }}
           </span>
         </div>
       </div>
@@ -359,7 +359,7 @@
       <div class="project-info-item">
         <span class="info-label">Statut</span>
         <span class="status-badge" [ngClass]="'status-' + selectedUserStoryProject.statut.toLowerCase()">
-          {{ selectedUserStoryProject.statut }}
+          <i *ngIf="selectedUserStoryProject.statut === 'TERMINE'" class="bi bi-check-circle-fill me-1"></i>{{ selectedUserStoryProject.statut === 'TERMINE' ? 'Terminé' : selectedUserStoryProject.statut === 'EN_COURS' ? 'En cours' : selectedUserStoryProject.statut === 'EN_ATTENTE' ? 'En attente' : selectedUserStoryProject.statut }}
         </span>
       </div>
       <div class="project-info-item">
@@ -448,7 +448,7 @@
                   {{ scenario.type || 'Fonctionnel' }}
                 </span>
                 <p class="mt-2 mb-0 fw-bold title-scenario text-light">{{ scenario.nomSenario }}</p>
-                <small class="text-muted d-block mt-1">{{ scenario.description }}</small>
+                <small class="scenario-desc d-block mt-1">{{ scenario.description }}</small>
               </td>
               <td>
                 <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
@@ -755,7 +755,7 @@
                   </span>
                   <strong class="ms-2">{{ scenario.nomSenario }}</strong>
                 </div>
-                <small class="text-muted d-block mt-1" *ngIf="scenario.description">{{ scenario.description }}</small>
+                <small class="scenario-desc d-block mt-1" *ngIf="scenario.description">{{ scenario.description }}</small>
               </div>
             </div>
           </div>
@@ -1205,10 +1205,10 @@
                      <div class="accordion-body p-0 pt-2 pb-3">
                         <!-- Description si disponible -->
                         <div *ngIf="sc.description" class="px-3 py-2 mb-2" style="background: rgba(255,255,255,0.04); border-left: 3px solid #198754;">
-                          <small class="text-secondary"><strong>Description :</strong> {{ sc.description }}</small>
+                          <small class="scenario-desc"><strong>Description :</strong> {{ sc.description }}</small>
                         </div>
                         <div *ngIf="sc.resultatAttendu" class="px-3 pb-2" style="background: rgba(255,255,255,0.03);">
-                          <small class="text-secondary"><strong>Résultat attendu :</strong> 
+                          <small class="scenario-desc"><strong>Résultat attendu :</strong> 
                             <span class="text-success">{{ sc.resultatAttendu }}</span>
                           </small>
                         </div>
