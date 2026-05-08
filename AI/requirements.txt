@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+requests
+pydantic
+selenium>=4.10.0
+selenium-wire
+webdriver-manager
+reportlab>=4.0.0
+xhtml2pdf>=0.2.15
+pillow>=10.0.0
+faker>=18.0.0
+python-dotenv
+beautifulsoup4>=4.12.0

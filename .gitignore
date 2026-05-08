@@ -1,0 +1,21 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Java
+target/
+
+# Frontend
+node_modules/
+dist/
+.angular/
+
+# IDE
+.idea/
+.vscode/

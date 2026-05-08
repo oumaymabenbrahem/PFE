@@ -54,7 +54,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   failedMetrics: string = '-';
   pipelineInterval: any;
   executionPdfReport?: string;
-  activeFileSpecTab: 'analyser' | 'generer' | 'tester' | 'historique' = 'analyser';
+  activeFileSpecTab: 'analyser' | 'generer' | 'tester' | 'rapport' = 'analyser';
   
   // File analysis (BeautifulSoup)
   fileAnalysisFields: any[] = [];
@@ -62,6 +62,17 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   isAnalyzingFile: boolean = false;
   fileAnalysisError: string = '';
   fileAnalysisSummary: any = null;
+
+  // Tester tab: CodeT5 script + Selenium execution
+  generatedSeleniumScript: string = '';
+  isGeneratingScript: boolean = false;
+  generateScriptError: string = '';
+  isRunningFileTests: boolean = false;
+  fileTestResults: any = null;
+  fileTestPdfReport: string = '';
+  fileTestLogs: string = '';
+  cachedHtmlContentBase64: string = '';
+  showRapportLogs: boolean = false;
   
   private readonly executionMetricsStoragePrefix = 'execution_metrics_';
 
@@ -74,7 +85,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute
   ) {}
 
-  setFileSpecTab(tab: 'analyser' | 'generer' | 'tester' | 'historique'): void {
+  setFileSpecTab(tab: 'analyser' | 'generer' | 'tester' | 'rapport'): void {
     this.activeFileSpecTab = tab;
   }
 
@@ -232,7 +243,9 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   onGenerateTests(projectId: string): void {
     const project = this.projects.find(p => p.id === projectId);
     
-    if (project?.specificationType === 'LIEN_APPLICATION' || project?.specificationType === 'CODE_FICHIER') {
+    // Pour LIEN_APPLICATION: ouvrir le dashboard immédiatement (pour voir le crawling)
+    // Pour CODE_FICHIER: ouvrir APRES la génération des tests
+    if (project?.specificationType === 'LIEN_APPLICATION') {
       this.openWebTestingDashboard(project);
     }
     
@@ -262,6 +275,17 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             project.nombreScripts = (project.nombreScripts || 0) + (generatedCount || 1);
           }
           this.successMessage = `✅ Scénarios générés avec succès! Exécution Selenium...`;
+
+          // Pour CODE_FICHIER: ouvrir le dashboard MAINTENANT que les tests sont prêts
+          if (project?.specificationType === 'CODE_FICHIER' && !this.showWebTestingDashboard) {
+            this.openWebTestingDashboard(project);
+            // Mettre le dashboard directement en état "terminé" avec les tests chargés
+            this.pipelineStatus = 'completed';
+            this.pipelineCurrentStep = 5;
+            this.pipelineProgress = 100;
+            this.scenariosGenerated = this.generatedScenarios?.length || 0;
+            this.elementsDetected = response.elementsCount !== undefined ? response.elementsCount : '-';
+          }
 
           if (this.showWebTestingDashboard && project) {
              if (this.pipelineInterval) clearInterval(this.pipelineInterval);
@@ -553,6 +577,16 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.webTestingProject = null;
     this.generatedScenarios = null; // Réinitialiser les scénarios affichés dans le dashboard
     this.activeFileSpecTab = 'analyser'; // Réinitialiser à l'onglet "Analyser"
+    // Reset Tester tab state
+    this.generatedSeleniumScript = '';
+    this.isGeneratingScript = false;
+    this.generateScriptError = '';
+    this.isRunningFileTests = false;
+    this.fileTestResults = null;
+    this.fileTestPdfReport = '';
+    this.fileTestLogs = '';
+    this.cachedHtmlContentBase64 = '';
+    this.showRapportLogs = false;
     if (this.pipelineInterval) clearInterval(this.pipelineInterval);
     document.body.style.overflow = '';
   }
@@ -819,6 +853,143 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           this.isAnalyzingFile = false;
         }
       });
+  }
+
+  /**
+   * Génère le script Selenium via CodeT5 pour l'onglet Tester
+   */
+  generateSeleniumScript(): void {
+    if (!this.webTestingProject || this.isGeneratingScript) return;
+
+    // Vérifier que des champs ont été analysés
+    if (this.fileAnalysisFields.length === 0) {
+      this.generateScriptError = 'Veuillez d\'abord analyser le fichier (onglet Analyser).';
+      return;
+    }
+
+    this.isGeneratingScript = true;
+    this.generateScriptError = '';
+    this.generatedSeleniumScript = '';
+
+    // Récupérer le contenu HTML du fichier pour CodeT5
+    this.projectService.getFileContent(this.webTestingProject.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (fileData: any) => {
+          // Stocker le contenu base64 pour l'exécution ultérieure
+          this.cachedHtmlContentBase64 = fileData.content;
+
+          // Décoder pour le contenu HTML brut
+          let htmlContent = '';
+          try {
+            const binaryString = atob(fileData.content);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            htmlContent = new TextDecoder('utf-8').decode(bytes);
+          } catch (e) {
+            this.generateScriptError = 'Erreur lors du décodage du fichier.';
+            this.isGeneratingScript = false;
+            return;
+          }
+
+          // Appeler l'API CodeT5
+          this.projectService.generateFileSelenium(
+            this.fileAnalysisFields,
+            this.generatedScenarios || [],
+            htmlContent
+          ).pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (result: any) => {
+                this.generatedSeleniumScript = result.selenium_code || '';
+                this.isGeneratingScript = false;
+                this.successMessage = `✅ Script Selenium généré par CodeT5 (${result.fields_count} champs, ${result.tests_count} tests)`;
+                setTimeout(() => this.successMessage = '', 5000);
+              },
+              error: (err) => {
+                console.error('Erreur génération CodeT5:', err);
+                this.generateScriptError = 'Erreur lors de la génération du script CodeT5.';
+                this.isGeneratingScript = false;
+              }
+            });
+        },
+        error: (err) => {
+          console.error('Erreur récupération fichier:', err);
+          this.generateScriptError = 'Impossible de récupérer le fichier du projet.';
+          this.isGeneratingScript = false;
+        }
+      });
+  }
+
+  /**
+   * Exécute le script Selenium sur le fichier HTML (Chrome visible)
+   */
+  runFileSeleniumTests(): void {
+    if (!this.generatedSeleniumScript || this.isRunningFileTests) return;
+
+    if (!this.cachedHtmlContentBase64) {
+      this.errorMessage = 'Contenu HTML non disponible. Veuillez regénérer le script.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
+    this.isRunningFileTests = true;
+    this.fileTestResults = null;
+    this.fileTestPdfReport = '';
+    this.fileTestLogs = '';
+
+    this.projectService.runFileSelenium(
+      this.generatedSeleniumScript,
+      this.cachedHtmlContentBase64,
+      this.generatedScenarios || [],
+      this.fileAnalysisFields || []
+    ).pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result: any) => {
+          this.isRunningFileTests = false;
+          this.fileTestResults = result;
+          this.fileTestLogs = result.logs || '';
+          this.fileTestPdfReport = result.pdf_base64 || '';
+          
+          if (result.status === 'PASSED') {
+            this.successMessage = '✅ Tests exécutés avec succès ! Chrome a testé le fichier.';
+          } else {
+            this.errorMessage = '❌ Tests échoués. Consultez les logs ci-dessous.';
+          }
+          setTimeout(() => { this.successMessage = ''; this.errorMessage = ''; }, 5000);
+        },
+        error: (err) => {
+          console.error('Erreur exécution Selenium:', err);
+          this.isRunningFileTests = false;
+          this.fileTestResults = { status: 'ERROR', logs: err.message };
+          this.fileTestLogs = err.message;
+          this.errorMessage = 'Erreur lors de l\'exécution Selenium: ' + err.message;
+          setTimeout(() => this.errorMessage = '', 5000);
+        }
+      });
+  }
+
+  /**
+   * Télécharge le rapport PDF des tests fichier
+   */
+  downloadFileTestReport(): void {
+    if (!this.fileTestPdfReport) {
+      this.errorMessage = 'Aucun rapport PDF disponible.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+    const byteCharacters = atob(this.fileTestPdfReport);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `Rapport_${this.webTestingProject?.nom || 'Fichier'}.pdf`;
+    link.click();
   }
 
   ngOnDestroy(): void {

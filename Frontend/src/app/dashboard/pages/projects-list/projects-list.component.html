@@ -466,19 +466,17 @@
           <span *ngIf="!isJiraConnected" class="badge bg-secondary ms-2">Non connecté</span>
         </h6>
 
-        <div *ngIf="isJiraConnected" class="row g-2 align-items-center">
-          <div class="col-md-4">
-            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
-              placeholder="Project Key (ex: PFE)" (input)="jiraProjectKey = $any($event.target).value"
+        
+
+        <div *ngIf="isJiraConnected" class="jira-form-row">
+          <div class="jira-key-col">
+            <label class="form-label jira-field-label mb-1">Project Key</label>
+            <input type="text" class="form-control form-control-sm jira-input"
+              placeholder="Project Key" (input)="jiraProjectKey = $any($event.target).value"
               [value]="jiraProjectKey">
           </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
-              placeholder="User Story ID (Optionnel)" (input)="jiraUserStoryId = $any($event.target).value"
-              [value]="jiraUserStoryId">
-          </div>
-          <div class="col-md-4">
-            <button class="btn btn-sm btn-primary w-100" (click)="pushToJira()"
+          <div class="jira-button-col">
+            <button class="btn btn-sm jira-submit-btn" (click)="pushToJira()"
               [disabled]="isPushingToJira || !jiraProjectKey">
               <i class="bi" [ngClass]="isPushingToJira ? 'bi-hourglass-split' : 'bi-cloud-arrow-up'"></i>
               {{ isPushingToJira ? 'Envoi...' : 'Envoyer vers Jira Xray' }}
@@ -613,9 +611,9 @@
             <i class="bi bi-play-circle side-icon" aria-hidden="true"></i>
             <span>Tester</span>
           </button>
-          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'historique'" (click)="setFileSpecTab('historique')">
-            <i class="bi bi-file-earmark-text side-icon" aria-hidden="true"></i>
-            <span>Historique</span>
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'rapport'" (click)="setFileSpecTab('rapport')">
+            <i class="bi bi-file-earmark-bar-graph side-icon" aria-hidden="true"></i>
+            <span>Rapport</span>
           </button>
 
           <div class="active-file">
@@ -766,27 +764,182 @@
         <!-- TAB: TESTER -->
         <section class="fsd-main" *ngIf="activeFileSpecTab === 'tester'">
           <div class="section-head">
-            <h6>Résultats des tests</h6>
-            <span class="counter">Tests exécutés</span>
+            <h6>Tester avec Selenium</h6>
+            <span class="counter">{{ fileTestResults ? (fileTestResults.status === 'PASSED' ? '✓ Passé' : '✗ Échoué') : (generatedSeleniumScript ? 'Script prêt' : 'En attente') }}</span>
           </div>
-          <div class="fsd-content">
-            <div class="text-center text-muted py-4">
-              <i class="bi bi-clipboard-check fs-3 d-block mb-2"></i>
-              <p>Les résultats des tests apparaîtront ici après l'exécution</p>
+          <div class="fsd-content tester-content">
+
+            <!-- Étape 1: Générer le script -->
+            <div class="tester-step">
+              <div class="step-header">
+                <span class="step-number">1</span>
+                <span class="step-title">Générer le script Selenium <span class="codet5-badge">IA</span></span>
+              </div>
+              <p class="step-description">
+                En un clic, obtenez un script Selenium basé sur  
+                <strong>{{ fileAnalysisFields.length }}</strong> champs détectés et 
+                <strong>{{ generatedScenarios?.length || 0 }}</strong> tests générés.
+              </p>
+              <button class="btn-generate-script" (click)="generateSeleniumScript()" 
+                [disabled]="isGeneratingScript || fileAnalysisFields.length === 0">
+                <span *ngIf="!isGeneratingScript">
+                  <i class="bi bi-cpu me-2"></i>Générer le script 
+                </span>
+                <span *ngIf="isGeneratingScript">
+                  <i class="bi bi-arrow-repeat spin-icon me-2"></i>Génération en cours...
+                </span>
+              </button>
+              <div class="step-error" *ngIf="generateScriptError">
+                <i class="bi bi-exclamation-triangle me-1"></i>{{ generateScriptError }}
+              </div>
             </div>
+
+            <!-- Affichage du script généré -->
+            <div class="script-viewer" *ngIf="generatedSeleniumScript">
+              <div class="script-viewer-header">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-file-earmark-code me-2"></i>
+                  <span>test_file_selenium.py</span>
+                  <span class="ms-2 script-model-tag">CodeT5 Local</span>
+                </div>
+                <button class="btn-copy" (click)="copyToClipboard(generatedSeleniumScript)" title="Copier le script">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+              <div class="script-code-block">
+                <pre><code>{{ generatedSeleniumScript }}</code></pre>
+              </div>
+            </div>
+
+            <!-- Étape 2: Exécuter les tests -->
+            <div class="tester-step" *ngIf="generatedSeleniumScript">
+              <div class="step-header">
+                <span class="step-number">2</span>
+                <span class="step-title">Exécuter les tests avec Selenium</span>
+              </div>
+              <p class="step-description">
+                Chrome s'ouvre, les tests défilent, tout se vérifie . . .
+              </p>
+              <button class="btn-run-tests" (click)="runFileSeleniumTests()" 
+                [disabled]="isRunningFileTests">
+                <span *ngIf="!isRunningFileTests">
+                  <i class="bi bi-play-fill me-2"></i>Exécuter les tests
+                </span>
+                <span *ngIf="isRunningFileTests">
+                  <i class="bi bi-arrow-repeat spin-icon me-2"></i>Selenium en cours d'exécution...
+                </span>
+              </button>
+            </div>
+
+            <!-- Résultats de l'exécution -->
+            <div class="test-results-section" *ngIf="fileTestResults">
+              <div class="results-header" [ngClass]="fileTestResults.status === 'PASSED' ? 'result-passed' : 'result-failed'">
+                <i class="bi" [ngClass]="fileTestResults.status === 'PASSED' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+                <span class="result-status">{{ fileTestResults.status === 'PASSED' ? 'TESTS RÉUSSIS' : 'TESTS ÉCHOUÉS' }}</span>
+                <span class="result-details" *ngIf="fileTestResults.results">
+                  {{ fileTestResults.results.passed }} passé(s) / {{ fileTestResults.results.failed }} échoué(s)
+                </span>
+              </div>
+
+              <!-- Logs d'exécution -->
+              <div class="test-logs" *ngIf="fileTestLogs">
+                <div class="logs-header">
+                  <i class="bi bi-terminal me-2"></i>Logs d'exécution
+                </div>
+                <pre class="logs-content">{{ fileTestLogs }}</pre>
+              </div>
+
+              <!-- Bouton télécharger le rapport PDF -->
+              <div class="report-actions" *ngIf="fileTestPdfReport">
+                <button class="btn-download-report" (click)="downloadFileTestReport()">
+                  <i class="bi bi-file-earmark-pdf me-2"></i>Télécharger le rapport PDF
+                </button>
+              </div>
+            </div>
+
+            <!-- État vide -->
+            <div class="text-center text-muted py-3" *ngIf="!generatedSeleniumScript && !isGeneratingScript && !generateScriptError">
+              <i class="bi bi-robot fs-3 d-block mb-2" style="opacity: 0.5;"></i>
+              <p style="font-size: 0.85rem;">Cliquez sur "Générer le script" pour créer le test Selenium </p>
+            </div>
+
           </div>
         </section>
 
-        <!-- TAB: HISTORIQUE -->
-        <section class="fsd-main" *ngIf="activeFileSpecTab === 'historique'">
+        <!-- TAB: RAPPORT -->
+        <section class="fsd-main" *ngIf="activeFileSpecTab === 'rapport'">
           <div class="section-head">
-            <h6>Historique</h6>
-            <span class="counter">Générations antérieures</span>
+            <h6>Rapport d'exécution</h6>
+            <span class="counter" [ngClass]="{'counter-pass': fileTestResults?.status === 'PASSED', 'counter-fail': fileTestResults?.status === 'FAILED'}">{{ fileTestResults ? (fileTestResults.status === 'PASSED' ? '✓ Succès' : '✗ Échec') : 'Aucun rapport' }}</span>
           </div>
-          <div class="fsd-content">
-            <div class="text-center text-muted py-4">
-              <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
-              <p>L'historique des générations apparaîtra ici</p>
+          <div class="fsd-content rapport-content">
+
+            <!-- Aucun rapport disponible -->
+            <div class="rapport-empty" *ngIf="!fileTestResults">
+              <div class="empty-icon">
+                <i class="bi bi-clipboard2-data"></i>
+              </div>
+              <p class="empty-title">Aucun rapport disponible</p>
+              <p class="empty-desc">Exécutez les tests dans l'onglet <strong>Tester</strong> pour générer un rapport détaillé.</p>
+            </div>
+
+            <!-- Rapport disponible -->
+            <div *ngIf="fileTestResults">
+
+              <!-- Résumé global -->
+              <div class="rapport-summary" [ngClass]="fileTestResults.status === 'PASSED' ? 'summary-passed' : 'summary-failed'">
+                <div class="summary-icon">
+                  <i class="bi" [ngClass]="fileTestResults.status === 'PASSED' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+                </div>
+                <div class="summary-info">
+                  <span class="summary-status">{{ fileTestResults.status === 'PASSED' ? 'TESTS RÉUSSIS' : 'TESTS ÉCHOUÉS' }}</span>
+                  <span class="summary-detail" *ngIf="fileTestResults.results">
+                    {{ fileTestResults.results.passed }} passé(s) · {{ fileTestResults.results.failed }} échoué(s) · {{ fileTestResults.results.total }} total
+                  </span>
+                </div>
+              </div>
+
+              <!-- Détails des résultats -->
+              <div class="rapport-details">
+                <div class="detail-header">
+                  <i class="bi bi-list-check me-2"></i>Détails des tests
+                </div>
+                <div class="detail-rows">
+                  <div class="detail-row" *ngIf="fileTestResults.results">
+                    <div class="detail-item">
+                      <span class="detail-label">Statut global</span>
+                      <span class="detail-badge" [ngClass]="fileTestResults.status === 'PASSED' ? 'badge-pass' : 'badge-fail'">{{ fileTestResults.status }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Tests passés</span>
+                      <span class="detail-value value-pass">{{ fileTestResults.results.passed }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Tests échoués</span>
+                      <span class="detail-value value-fail">{{ fileTestResults.results.failed }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Total exécutés</span>
+                      <span class="detail-value">{{ fileTestResults.results.total }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Éléments détectés</span>
+                      <span class="detail-value">{{ fileAnalysisFields.length }}</span>
+                    </div>
+                    
+                  </div>
+                </div>
+              </div>
+
+              
+
+              <!-- Bouton télécharger le rapport -->
+              <div class="rapport-download" *ngIf="fileTestPdfReport">
+                <button class="btn-download-full-report" (click)="downloadFileTestReport()">
+                  <i class="bi bi-file-earmark-pdf-fill me-2"></i>Télécharger le rapport PDF
+                </button>
+              </div>
+
             </div>
           </div>
         </section>
@@ -913,7 +1066,7 @@
 
         <!-- Tableau des scénarios -->
         <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
-          <table class="table table-dark table-hover align-middle mb-0" style="font-size: 0.9rem;">
+          <table class="table table-dark table-hover align-middle mb-0 wt-scenarios-table" style="font-size: 0.9rem;">
             <thead style="position: sticky; top: 0; background: #1a1a2e; z-index: 1;">
               <tr>
                 <th style="width: 20%;">Type</th>
@@ -943,8 +1096,8 @@
                 </td>
                 <td>
                   <strong class="text-light">{{ sc.nomSenario }}</strong>
-                  <small class="text-muted d-block mt-1" *ngIf="sc.description">{{ sc.description }}</small>
-                  <small class="text-success d-block mt-1" *ngIf="sc.resultatAttendu">
+                  <small class="scenario-description d-block mt-1" *ngIf="sc.description">{{ sc.description }}</small>
+                  <small class="scenario-expected d-block mt-1" *ngIf="sc.resultatAttendu">
                     <i class="bi bi-arrow-right me-1"></i>{{ sc.resultatAttendu }}
                   </small>
                 </td>

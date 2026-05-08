@@ -181,4 +181,36 @@ export class ProjectService {
       })
     );
   }
+
+  // Generate Selenium script via CodeT5 model for CODE_FICHIER projects
+  generateFileSelenium(fields: any[], tests: any[], htmlContent: string): Observable<any> {
+    return this.httpClient.post<any>('http://localhost:8000/api/generate-file-selenium', {
+      fields: fields,
+      tests: tests,
+      html_content: htmlContent
+    }).pipe(
+      timeout(120000), // 2 min timeout pour la génération CodeT5
+      catchError(error => {
+        console.error('Erreur lors de la génération du script Selenium:', error);
+        return throwError(() => new Error('Erreur de génération CodeT5'));
+      })
+    );
+  }
+
+  // Execute Selenium script on HTML file (visible Chrome)
+  runFileSelenium(scriptCode: string, htmlContentBase64: string, tests: any[] = [], fields: any[] = []): Observable<any> {
+    return this.httpClient.post<any>('http://localhost:8000/api/run-file-selenium', {
+      script_code: scriptCode,
+      html_content: htmlContentBase64,
+      tests: tests,
+      fields: fields
+    }).pipe(
+      timeout(600000), // 10 min timeout pour l'exécution de N tests Selenium
+      catchError(error => {
+        console.error('Erreur lors de l\'exécution Selenium:', error);
+        return throwError(() => new Error('Erreur d\'exécution Selenium'));
+      })
+    );
+  }
 }
+

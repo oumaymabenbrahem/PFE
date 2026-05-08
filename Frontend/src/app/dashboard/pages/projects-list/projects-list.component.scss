@@ -1323,6 +1323,108 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+// ==========================================
+// PANNEAU JIRA XRAY
+// ==========================================
+
+.jira-integration-panel {
+  background: linear-gradient(180deg, rgba(18, 20, 31, 0.96) 0%, rgba(15, 16, 26, 0.96) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+
+  .jira-hint {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .jira-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 1rem 1.25rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .jira-key-col {
+    flex: 1 1 320px;
+    min-width: 0;
+  }
+
+  .jira-button-col {
+    flex: 0 1 300px;
+    min-width: 0;
+  }
+
+  .jira-field-label {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .jira-input {
+    height: 42px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.78);
+      opacity: 1;
+    }
+
+    &:focus {
+      background-color: rgba(255, 255, 255, 0.06);
+      border-color: rgba(13, 110, 253, 0.8);
+      box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.15);
+      color: #fff;
+    }
+  }
+
+  .jira-submit-btn {
+    height: 42px;
+    width: 100%;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 8px 18px rgba(13, 110, 253, 0.22);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(13, 110, 253, 0.28);
+    }
+
+    &:disabled {
+      background: rgba(108, 117, 125, 0.55);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    i {
+      margin-right: 6px;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .jira-key-col,
+    .jira-button-col {
+      flex-basis: 100%;
+    }
+  }
+}
+
 .delete-confirmation-modal {
   background-color: #fff;
   border-radius: 16px;
@@ -1751,6 +1853,38 @@
       }
       .wt-step-label {
        font-size: 0.8rem; font-weight: 600; color: #6c757d; letter-spacing: 0.5px;
+      }
+    }
+
+    .wt-scenarios-table {
+      thead th {
+        color: #f8fafc;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+
+      tbody td {
+        vertical-align: top;
+      }
+
+      strong.text-light {
+        color: #ffffff !important;
+        font-size: 1rem;
+        line-height: 1.45;
+      }
+
+      .scenario-description {
+        color: #d8dee9 !important;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        white-space: normal;
+      }
+
+      .scenario-expected {
+        color: #7ee787 !important;
+        font-size: 0.82rem;
+        line-height: 1.4;
+        white-space: normal;
       }
     }
   }
@@ -2359,6 +2493,609 @@
         color: #6d28d9;
         border: 1px solid #ddd6fe;
       }
+    }
+  }
+}
+
+// ==========================================
+// ONGLET TESTER — CodeT5 + Selenium
+// ==========================================
+
+.tester-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px !important;
+}
+
+.tester-step {
+  background: #fafbfc;
+  border: 1px solid #e8ecf1;
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #2c3e50;
+  }
+
+  .step-description {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 6px 0 12px 0;
+    line-height: 1.5;
+  }
+
+  .step-error {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 6px;
+    color: #c53030;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+// CodeT5 badge
+.codet5-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+// Script model tag
+.script-model-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+// Generate Script button
+.btn-generate-script {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(102, 126, 234, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .spin-icon {
+    animation: spin 1s linear infinite;
+  }
+}
+
+// Run Tests button
+.btn-run-tests {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(220, 38, 38, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(220, 38, 38, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .spin-icon {
+    animation: spin 1s linear infinite;
+  }
+}
+
+// Script Viewer
+.script-viewer {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  .script-viewer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #2d3748;
+    color: #e2e8f0;
+    font-size: 0.82rem;
+    font-weight: 500;
+
+    i {
+      color: #63b3ed;
+    }
+  }
+
+  .btn-copy {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #a0aec0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  .script-code-block {
+    background: #1a202c;
+    max-height: 320px;
+    overflow-y: auto;
+
+    pre {
+      margin: 0;
+      padding: 16px;
+
+      code {
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: #63b3ed;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    }
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: #1a202c;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #4a5568;
+      border-radius: 3px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: #718096;
+    }
+  }
+}
+
+// Test Results Section
+.test-results-section {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    font-weight: 700;
+    font-size: 0.9rem;
+
+    &.result-passed {
+      background: linear-gradient(135deg, #c6f6d5, #e6fffa);
+      color: #22543d;
+      border-bottom: 2px solid #48bb78;
+
+      i {
+        font-size: 1.3rem;
+        color: #38a169;
+      }
+    }
+
+    &.result-failed {
+      background: linear-gradient(135deg, #fed7d7, #fff5f5);
+      color: #742a2a;
+      border-bottom: 2px solid #fc8181;
+
+      i {
+        font-size: 1.3rem;
+        color: #e53e3e;
+      }
+    }
+
+    .result-status {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .result-details {
+      font-size: 0.82rem;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+  }
+}
+
+// Test Logs
+.test-logs {
+  .logs-header {
+    padding: 10px 16px;
+    background: #2d3748;
+    color: #a0aec0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+
+    i {
+      color: #63b3ed;
+    }
+  }
+
+  .logs-content {
+    background: #1a202c;
+    color: #68d391;
+    padding: 14px 16px;
+    margin: 0;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: #1a202c;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #4a5568;
+      border-radius: 3px;
+    }
+  }
+}
+
+// Report download button
+.report-actions {
+  padding: 14px 18px;
+  background: #f7fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-download-report {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(229, 62, 62, 0.25);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(229, 62, 62, 0.35);
+  }
+}
+
+// ==========================================
+// ONGLET RAPPORT
+// ==========================================
+
+.rapport-content {
+  padding: 24px;
+}
+
+.rapport-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  border: 1px dashed #dee2e6;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 3rem;
+    color: #adb5bd;
+    margin-bottom: 16px;
+  }
+
+  .empty-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+  }
+
+  .empty-desc {
+    color: #6c757d;
+    max-width: 400px;
+  }
+}
+
+.rapport-summary {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  gap: 20px;
+
+  &.summary-passed {
+    background: linear-gradient(135deg, #e6fffa 0%, #c6f6d5 100%);
+    border: 1px solid #9ae6b4;
+
+    .summary-icon i {
+      color: #38a169;
+    }
+    .summary-status {
+      color: #276749;
+    }
+    .summary-detail {
+      color: #2f855a;
+    }
+  }
+
+  &.summary-failed {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    border: 1px solid #feb2b2;
+
+    .summary-icon i {
+      color: #e53e3e;
+    }
+    .summary-status {
+      color: #9b2c2c;
+    }
+    .summary-detail {
+      color: #c53030;
+    }
+  }
+
+  .summary-icon i {
+    font-size: 2.5rem;
+  }
+
+  .summary-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .summary-status {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .summary-detail {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+}
+
+.rapport-details {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow: hidden;
+
+  .detail-header {
+    background-color: #f7fafc;
+    padding: 12px 20px;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .detail-rows {
+    padding: 20px;
+  }
+
+  .detail-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+
+    .detail-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1e293b;
+
+      &.value-pass { color: #10b981; }
+      &.value-fail { color: #ef4444; }
+    }
+
+    .detail-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      width: fit-content;
+
+      &.badge-pass {
+        background-color: #d1fae5;
+        color: #059669;
+      }
+      &.badge-fail {
+        background-color: #fee2e2;
+        color: #dc2626;
+      }
+    }
+  }
+}
+
+.rapport-logs {
+  background-color: #1e293b;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow: hidden;
+
+  .logs-toggle-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    color: #f8fafc;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: #0f172a;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #1e293b;
+    }
+
+    i {
+      color: #38bdf8;
+    }
+  }
+
+  .rapport-logs-content {
+    margin: 0;
+    padding: 16px 20px;
+    color: #4ade80;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  }
+}
+
+.rapport-download {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+
+  .btn-download-full-report {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(229, 62, 62, 0.4);
     }
   }
 }
