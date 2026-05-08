@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { User, LoginDto, RegisterDto, AuthResponse, JwtPayload } from '../../shared/models/user.model';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -100,6 +101,52 @@ export class AuthService {
           this.isLoadingSubject.next(false);
           console.error('Erreur d\'enregistrement:', error);
           return throwError(() => new Error(error.error?.message || 'Erreur d\'enregistrement'));
+        })
+      );
+  }
+
+  /**
+   * Authentifie un utilisateur via Google OAuth2
+   * @param token - Google ID token obtenu via Google Identity Services
+   * @returns Observable contenant la réponse d'authentification
+   */
+  public googleLogin(token: string): Observable<AuthResponse> {
+    this.isLoadingSubject.next(true);
+
+    return this.httpClient.post<AuthResponse>(`${this.API_URL}/google`, { token })
+      .pipe(
+        tap(response => this.handleAuthResponse(response)),
+        map(response => {
+          this.isLoadingSubject.next(false);
+          return response;
+        }),
+        catchError(error => {
+          this.isLoadingSubject.next(false);
+          console.error('Erreur de connexion Google:', error);
+          return throwError(() => new Error(error.error?.message || 'Erreur de connexion Google'));
+        })
+      );
+  }
+
+  /**
+   * Authentifie un utilisateur via GitHub OAuth2
+   * @param code - Code d'autorisation GitHub obtenu après redirection
+   * @returns Observable contenant la réponse d'authentification
+   */
+  public githubLogin(code: string): Observable<AuthResponse> {
+    this.isLoadingSubject.next(true);
+
+    return this.httpClient.post<AuthResponse>(`${this.API_URL}/github`, { code })
+      .pipe(
+        tap(response => this.handleAuthResponse(response)),
+        map(response => {
+          this.isLoadingSubject.next(false);
+          return response;
+        }),
+        catchError(error => {
+          this.isLoadingSubject.next(false);
+          console.error('Erreur de connexion GitHub:', error);
+          return throwError(() => new Error(error.error?.message || 'Erreur de connexion GitHub'));
         })
       );
   }

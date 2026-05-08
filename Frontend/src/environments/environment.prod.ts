@@ -1,4 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:8081/api'
+  apiUrl: 'http://localhost:8081/api',
+  googleClientId: '52179222754-ihmva85vsjuka0lthbr1cdl16ejso59d.apps.googleusercontent.com',
+  githubClientId: 'Ov23ctrHUkGvdLMXeLuz',
 };

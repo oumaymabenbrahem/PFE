@@ -4,6 +4,7 @@ import com.example.backend.dto.*;
 import com.example.backend.service.AuthService;
 import com.example.backend.service.PasswordResetService;
 import jakarta.validation.Valid;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -57,6 +58,44 @@ public class AuthController {
                     .body(new ErrorResponse("Identifiants invalides"));
         } catch (Exception e) {
             log.error("Erreur interne lors de la connexion", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Erreur interne du serveur"));
+        }
+    }
+
+    // Endpoint de connexion Google OAuth2
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+        try {
+            log.info("Tentative de connexion Google OAuth2");
+            AuthResponse response = authService.googleLogin(request.getToken());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Erreur lors de la connexion Google: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erreur interne lors de la connexion Google", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Erreur interne du serveur"));
+        }
+    }
+
+    // Endpoint de connexion GitHub OAuth2
+
+    @PostMapping("/github")
+    public ResponseEntity<?> githubLogin(@Valid @RequestBody GitHubAuthRequest request) {
+        try {
+            log.info("Tentative de connexion GitHub OAuth2");
+            AuthResponse response = authService.githubLogin(request.getCode());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Erreur lors de la connexion GitHub: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erreur interne lors de la connexion GitHub", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Erreur interne du serveur"));
         }

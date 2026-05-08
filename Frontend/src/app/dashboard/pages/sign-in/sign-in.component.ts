@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoginDto } from '../../../shared/models/user.model';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-sign-in',
@@ -92,9 +93,78 @@ export class SignInComponent implements OnInit, AfterViewInit {
     this.socialButtons.forEach(button => {
       button.addEventListener('click', (e) => {
         const provider = (button.querySelector('span') as HTMLElement).textContent?.trim() || '';
-        this.handleSocialLogin(provider, button);
+        if (provider === 'Google') {
+          this.handleGoogleLogin(button);
+        } else if (provider === 'GitHub') {
+          this.handleGitHubLogin(button);
+        } else {
+          this.handleSocialLogin(provider, button);
+        }
       });
     });
+
+    // Check if returning from GitHub OAuth redirect with a code
+    this.handleGitHubCallback();
+  }
+
+  private handleGoogleLogin(button: HTMLElement): void {
+    const originalHTML = button.innerHTML;
+    button.style.pointerEvents = 'none';
+    button.style.opacity = '0.7';
+
+    try {
+      // Use Google Identity Services to get an ID token
+      (window as any).google.accounts.id.initialize({
+        client_id: environment.googleClientId,
+        callback: (response: any) => {
+          if (response.credential) {
+            this.authService.googleLogin(response.credential).subscribe({
+              next: (authResponse: any) => {
+                console.log('Google login successful:', authResponse.user.email);
+                this.showGentleSuccess();
+                setTimeout(() => {
+                  this.router.navigate(['/dashboard']);
+                }, 3500);
+              },
+              error: (error: any) => {
+                console.error('Google login error:', error);
+                this.showGentleFailure();
+                this.showError('email', error.message || 'Connexion Google échouée.');
+                this.setLoading(false);
+                button.style.pointerEvents = 'auto';
+                button.style.opacity = '1';
+                setTimeout(() => {
+                  this.resetLoginState();
+                }, 1500);
+              }
+            });
+          } else {
+            console.error('No credential in Google response');
+            this.showGentleFailure();
+            button.style.pointerEvents = 'auto';
+            button.style.opacity = '1';
+            setTimeout(() => {
+              this.resetLoginState();
+            }, 1500);
+          }
+        },
+        auto_select: false,
+      });
+
+      // Trigger the Google One Tap / popup prompt
+      (window as any).google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // If popup is blocked or skipped, fall back to redirect
+          console.warn('Google prompt not displayed, reason:', notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
+          button.style.pointerEvents = 'auto';
+          button.style.opacity = '1';
+        }
+      });
+    } catch (error) {
+      console.error('Google Identity Services not available:', error);
+      button.style.pointerEvents = 'auto';
+      button.style.opacity = '1';
+    }
   }
 
   private setupGentleEffects(): void {
@@ -276,6 +346,58 @@ export class SignInComponent implements OnInit, AfterViewInit {
       console.error('Unexpected error:', error);
       this.showError('password', 'Connexion échouée. Veuillez réessayer.');
       this.setLoading(false);
+    }
+  }
+
+  private handleGitHubLogin(button: HTMLElement): void {
+    button.style.pointerEvents = 'none';
+    button.style.opacity = '0.7';
+
+    try {
+      // Redirect to GitHub OAuth authorization page
+      const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${environment.githubClientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/login')}&scope=user:email`;
+      window.location.href = githubAuthUrl;
+    } catch (error) {
+      console.error('GitHub login error:', error);
+      button.style.pointerEvents = 'auto';
+      button.style.opacity = '1';
+    }
+  }
+
+  private handleGitHubCallback(): void {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+
+    if (error) {
+      console.error('GitHub OAuth error:', error);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (code) {
+      // Clean URL to avoid re-processing the code on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      this.authService.githubLogin(code).subscribe({
+        next: (authResponse: any) => {
+          console.log('GitHub login successful:', authResponse.user.email);
+          this.showGentleSuccess();
+          setTimeout(() => {
+            this.router.navigate(['/dashboard']);
+          }, 3500);
+        },
+        error: (err: any) => {
+          console.error('GitHub login error:', err);
+          this.showGentleFailure();
+          this.showError('email', err.message || 'Connexion GitHub échouée.');
+          this.setLoading(false);
+          setTimeout(() => {
+            this.resetLoginState();
+          }, 1500);
+        }
+      });
     }
   }
 
