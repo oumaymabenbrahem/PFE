@@ -470,9 +470,9 @@
 
         <div *ngIf="isJiraConnected" class="jira-form-row">
           <div class="jira-key-col">
-            <label class="form-label jira-field-label mb-1">Project Key</label>
+            <label class="form-label jira-field-label mb-1">Nom du Projet : </label>
             <input type="text" class="form-control form-control-sm jira-input"
-              placeholder="Project Key" (input)="jiraProjectKey = $any($event.target).value"
+              placeholder="Entrez la clé du votre  projet" (input)="jiraProjectKey = $any($event.target).value"
               [value]="jiraProjectKey">
           </div>
           <div class="jira-button-col">

@@ -517,10 +517,10 @@ public class ProjectService {
                 return finalResponse;
             }
 
-            // Timeout de 10 minutes pour l'appel REST (génération IA peut être longue)
+            // Timeout de 15 minutes pour crawl + validation locators + génération IA.
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(60000);
-            requestFactory.setReadTimeout(600000); // 10 minutes pour la génération IA
+            requestFactory.setReadTimeout(900000);
             RestTemplate restTemplate = new RestTemplate(requestFactory);
             
             String pythonApiUrl = "";
@@ -598,13 +598,22 @@ public class ProjectService {
                         elementsJson = "[]";
                     }
 
+                    int reliableElementsCount = elementsInteractifs != null ? elementsInteractifs.size() : 0;
+                    Object locatorValidationObj = result.get("locator_validation");
+                    if (locatorValidationObj instanceof Map<?, ?> locatorValidationMap) {
+                        Object reliableObj = locatorValidationMap.get("reliable");
+                        if (reliableObj instanceof Number reliableNumber) {
+                            reliableElementsCount = reliableNumber.intValue();
+                        }
+                    }
+
                     // Enregistrer en base le résultat ML
                     TestScript testScript = TestScript.builder()
                             .project(project)
                             .scriptContent(elementsJson) // Sauvegarder les vrais éléments bruts ou le script Py
                             .framework("selenium-ml")
                             .statut("CRAWLED_AND_ANALYZED")
-                            .elementsCount(elementsInteractifs != null ? elementsInteractifs.size() : 0)
+                            .elementsCount(reliableElementsCount)
                             .build();
                     
                     // Sauvgarder les scénarios ML dans le JSON "scenarios" 
@@ -632,6 +641,7 @@ public class ProjectService {
                     finalResponse.put("scenarios", displayList);
                     finalResponse.put("elementsCount", testScript.getElementsCount());
                     finalResponse.put("elements_classified", result.get("elements_classified"));
+                    finalResponse.put("locator_validation", result.get("locator_validation"));
                     finalResponse.put("focusObjective", project.getFocusOptionnel());
                     
                     return finalResponse;

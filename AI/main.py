@@ -12,6 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from huggingface_hub import InferenceClient
 import json
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException as SeleniumTimeoutException
 
 # Import the FeatureExtractor for joblib to properly deserialize the pipeline
 from prepare_Elements_Detected import FeatureExtractor, filter_noisy_elements
@@ -65,6 +68,8 @@ except Exception as e:
 
 # 2. Charger le CodeT5 local finetuné
 CODET5_PATH = "./codet5_finetuned_selenium"
+MAX_LOCATOR_VALIDATION_ELEMENTS = int(os.getenv("MAX_LOCATOR_VALIDATION_ELEMENTS", "120"))
+LOCATOR_VALIDATION_PAGELOAD_TIMEOUT = int(os.getenv("LOCATOR_VALIDATION_PAGELOAD_TIMEOUT", "45"))
 try:
     codet5_tokenizer = AutoTokenizer.from_pretrained(CODET5_PATH)
     codet5_model = AutoModelForSeq2SeqLM.from_pretrained(CODET5_PATH)
@@ -89,6 +94,10 @@ class ElementData(BaseModel):
     data_test: Optional[str] = Field(default="", alias="data-test")
     data_testid: Optional[str] = Field(default="", alias="data-testid")
     class_name: Optional[str] = Field(default="", alias="class")
+    css: Optional[str] = ""
+    xpath: Optional[str] = ""
+    visibility_percent: Optional[Any] = ""
+    is_clickable: Optional[Any] = ""
 
 class AnalyzeAppRequest(BaseModel):
     url: str
@@ -394,12 +403,35 @@ async def analyze_app(request: AnalyzeAppRequest):
         prediction_probabilities = element_model.predict_proba(df_elements)
         max_probs = prediction_probabilities.max(axis=1)
 
+        for idx, el in enumerate(elements_dicts):
+            el["mlRole"] = str(predictions[idx]) if idx < len(predictions) else "unknown"
+            el["mlConfidence"] = round(float(max_probs[idx]), 3) if idx < len(max_probs) else 0.0
+
         # 3. Compter les types d'éléments trouvés
         prediction_counts = pd.Series(predictions).value_counts().to_dict()
         print(f"✓ Éléments classifiés : {prediction_counts}")
-
         focus_objective = _normalize_focus_objective(request.focusObjective or request.focusOptionnel)
-        elements_for_generation = _filter_elements_by_focus(elements_dicts, focus_objective)
+
+        # 3.b Validation DOM réelle des locators dans l'étape ANALYSE.
+        validated_elements, validation_summary = _validate_elements_locators_in_current_dom(request.url, elements_dicts)
+        reliable_elements = [el for el in validated_elements if el.get("reliable")]
+        print(
+            f"[LOCATOR-VALIDATION] {validation_summary.get('reliable', 0)}/"
+            f"{validation_summary.get('total', 0)} éléments fiables conservés"
+        )
+
+        if not reliable_elements:
+            return {
+                "message": "Aucun élément fiable après validation DOM des locators. Génération stoppée pour éviter des tests faux.",
+                "scenarios": [],
+                "elements_classified": prediction_counts,
+                "locator_validation": validation_summary,
+                "validated_elements": validated_elements,
+                "focus_objective": focus_objective,
+                "python_script": json.dumps(validated_elements, ensure_ascii=False, indent=2)
+            }
+
+        elements_for_generation = _filter_elements_by_focus(reliable_elements, focus_objective)
 
         # 4. DYNAMIQUE: Générer des scénarios directement avec l'IA basé sur les éléments détectés
         # Créer une description structurée des éléments pour l'IA
@@ -437,11 +469,13 @@ async def analyze_app(request: AnalyzeAppRequest):
         python_script = "# Script Selenium généré par l'IA (à implémenter Phase 3)"
 
         return {
-            "message": f"ML Analysis successful: {len(scenarios)} scénarios générés. Éléments: {list(prediction_counts.keys())}",
+            "message": f"ML Analysis successful: {len(scenarios)} scénarios générés. Locators fiables: {validation_summary.get('reliable', 0)}/{validation_summary.get('total', 0)}. Éléments: {list(prediction_counts.keys())}",
             "scenarios": scenarios,
             "elements_classified": prediction_counts,
+            "locator_validation": validation_summary,
+            "validated_elements": validated_elements,
             "focus_objective": focus_objective,
-            "python_script": python_script
+            "python_script": json.dumps(reliable_elements, ensure_ascii=False, indent=2) if reliable_elements else python_script
         }
 
     except Exception as e:
@@ -456,16 +490,18 @@ async def generate_selenium_code(request: SeleniumGenerationRequest):
     if not request.objective:
         raise HTTPException(status_code=400, detail="L'objectif utilisateur est requis.")
         
-    # Convertir la liste d'éléments pour le prompt CodeT5 local (format du dataset)
-    # Ex: auth_login: field #username, field #password | login admin
-    
-    # 1. Grouper par classe Random Forest
+    reliable_elements = [el for el in request.elements if el.get("reliable") and el.get("validatedLocator")]
+    if not reliable_elements:
+        raise HTTPException(status_code=400, detail="Aucun élément fiable avec locator validé fourni à la génération Selenium.")
+
+    # CodeT5 reçoit uniquement les éléments validés, jamais les locators bruts non vérifiés.
     elements_summary = []
-    for el in request.elements:
+    for el in reliable_elements:
         tag = el.get('tag', '')
-        id_val = f"#{el.get('id')}" if el.get('id') else ""
-        class_str = f".{el.get('class')}" if el.get('class') else ""
-        elements_summary.append(f"{tag}{id_val}{class_str}")
+        role = el.get('mlRole') or el.get('role') or ''
+        locator = el.get('validatedLocator', '')
+        confidence = el.get('locatorConfidence', '')
+        elements_summary.append(f"{tag} role={role} locator={locator} confidence={confidence}")
 
     prompt_text = f"Generate Selenium script for: {request.objective}: {', '.join(elements_summary)} | {request.objective}"
 
@@ -482,8 +518,12 @@ async def generate_selenium_code(request: SeleniumGenerationRequest):
         
         generated_code = codet5_tokenizer.decode(outputs[0], skip_special_tokens=True)
         
-        # Ajout du header complet
-        final_script = f"# Script Selenium Généré par CodeT5 Local\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\nimport time\n\ndriver = webdriver.Chrome()\ndriver.implicitly_wait(10)\ndriver.get('{request.url}')\ntime.sleep(3)\n\n{generated_code.strip()}"
+        final_script = _build_validated_selenium_script(
+            url=request.url,
+            objective=request.objective,
+            elements=reliable_elements,
+            codet5_raw=generated_code.strip()
+        )
         
         print(f"[CodeT5 Local] Script Selenium généré avec succès !")
         
@@ -640,6 +680,10 @@ def _build_elements_description(elements_dicts: List[Dict], predictions: Dict) -
         role = el.get('role', '')
         aria_label = el.get('aria-label', '')
         data_testid = el.get('data-testid', '')
+        validated_locator = el.get('validatedLocator', '')
+        locator_confidence = el.get('locatorConfidence', '')
+        ml_role = el.get('mlRole', '')
+        ml_confidence = el.get('mlConfidence', '')
         text = el.get('text', '')[:50]
         elem_str = f"  {idx+1}. {tag}"
         if f_type:
@@ -656,6 +700,12 @@ def _build_elements_description(elements_dicts: List[Dict], predictions: Dict) -
             elem_str += f" (aria-label: {aria_label[:40]})"
         if data_testid:
             elem_str += f" (data-testid: {data_testid})"
+        if validated_locator:
+            elem_str += f" (validated-locator: {validated_locator})"
+        if locator_confidence != '':
+            elem_str += f" (locator-confidence: {locator_confidence})"
+        if ml_role:
+            elem_str += f" (ml-role: {ml_role}, confidence: {ml_confidence})"
         if text:
             elem_str += f" - \"{text}\""
         description += elem_str + "\n"
@@ -733,6 +783,94 @@ def _repair_scenario_logic(scenario: Dict) -> Dict:
         )
 
     scenario["senario"] = _clean_gherkin_text(gherkin)
+    return scenario
+
+
+def _line_field_intent(line: str) -> str:
+    normalized = _normalize_for_match(line)
+    if any(term in normalized for term in ("mot de passe", "password", "passwd", "pwd")):
+        return "password"
+    if any(term in normalized for term in ("email", "e mail", "mail")):
+        return "email"
+    if any(term in normalized for term in ("recherche", "chercher", "search", "query")):
+        return "search"
+    if any(term in normalized for term in ("username", "utilisateur", "identifiant", "login")):
+        return "username"
+    return ""
+
+
+def _element_matches_line(el: Dict, line: str) -> bool:
+    line_norm = _normalize_for_match(line)
+    display = _normalize_for_match(_element_display_name(el))
+    if display and len(display) > 2 and display in line_norm:
+        return True
+
+    intent = _line_field_intent(line)
+    tag = (el.get("tag") or "").lower()
+    field_type = (el.get("type") or "").lower()
+    haystack = _normalize_for_match(" ".join(str(el.get(k, "")) for k in [
+        "tag", "type", "name", "id", "text", "placeholder", "aria-label", "role", "data-testid", "mlRole"
+    ]))
+    if intent == "password":
+        return tag == "input" and (field_type == "password" or any(t in haystack for t in ("password", "passwd", "pwd", "motdepasse")))
+    if intent == "email":
+        return field_type == "email" or "email" in haystack or "mail" in haystack
+    if intent == "search":
+        return field_type == "search" or any(t in haystack for t in ("search", "recherche", "query", "keyword"))
+    if intent == "username":
+        return field_type != "password" and any(t in haystack for t in ("user", "username", "login", "identifiant", "utilisateur"))
+    return False
+
+
+def _strip_step_locator(line: str) -> str:
+    return re.sub(
+        r"\s*\((?:id|name|css|xpath|role|aria-label|aria|validated-locator)\s*:.*\)\s*$",
+        "",
+        line,
+        flags=re.IGNORECASE
+    )
+
+
+def _repair_scenario_locators_with_validated_elements(scenario: Dict, elements_dicts: List[Dict]) -> Dict:
+    reliable_elements = [el for el in elements_dicts if el.get("reliable") and el.get("validatedLocator")]
+    if not reliable_elements:
+        return scenario
+
+    valid_locators = {str(el.get("validatedLocator") or "").strip() for el in reliable_elements}
+    repaired_lines = []
+    changed = False
+
+    for line in str(scenario.get("senario", "")).splitlines():
+        stripped = line.strip()
+        if not re.match(r"^(When|And|Quand|Et|Then|Alors)\b", stripped, flags=re.IGNORECASE):
+            repaired_lines.append(line)
+            continue
+
+        current_locator = ""
+        locator_match = re.search(
+            r"\((id|name|css|xpath|role|aria-label|aria|validated-locator)\s*:\s*(.*)\)\s*$",
+            stripped,
+            flags=re.IGNORECASE
+        )
+        if locator_match:
+            kind = locator_match.group(1).strip().lower()
+            value = locator_match.group(2).strip()
+            current_locator = value if kind == "validated-locator" else f"{kind}: {value}"
+            if current_locator in valid_locators:
+                repaired_lines.append(line)
+                continue
+
+        replacement = next((el.get("validatedLocator") for el in reliable_elements if _element_matches_line(el, stripped)), None)
+        if replacement:
+            indent = line[:len(line) - len(line.lstrip())]
+            repaired_lines.append(f"{indent}{_strip_step_locator(stripped)} ({replacement})")
+            changed = True
+        else:
+            repaired_lines.append(line)
+
+    if changed:
+        scenario = dict(scenario)
+        scenario["senario"] = _clean_gherkin_text("\n".join(repaired_lines))
     return scenario
 
 
@@ -836,6 +974,482 @@ def _deduplicate_elements(elements: List[Dict]) -> List[Dict]:
     return unique
 
 
+def _css_attr_literal(value: str) -> str:
+    value = str(value or "")
+    if "'" not in value:
+        return f"'{value}'"
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _xpath_literal_value(value: str) -> str:
+    value = str(value or "")
+    if "'" not in value:
+        return f"'{value}'"
+    if '"' not in value:
+        return f'"{value}"'
+    parts = value.split("'")
+    return "concat(" + ', "\'", '.join(f"'{part}'" for part in parts) + ")"
+
+
+def _safe_css_identifier(value: str) -> bool:
+    return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_-]*$", str(value or "")))
+
+
+def _element_css_candidates(el: Dict) -> List[str]:
+    tag = (el.get("tag") or "").strip().lower() or "*"
+    candidates = []
+
+    for key in ("data-testid", "data-test"):
+        value = str(el.get(key) or "").strip()
+        if value:
+            candidates.append(f"[{key}={_css_attr_literal(value)}]")
+
+    field_type = str(el.get("type") or "").strip()
+    if tag == "input" and field_type:
+        candidates.append(f"input[type={_css_attr_literal(field_type)}]")
+
+    role = str(el.get("role") or "").strip()
+    if role:
+        candidates.append(f"[role={_css_attr_literal(role)}]")
+
+    href = str(el.get("href") or "").strip()
+    if tag == "a" and href:
+        candidates.append(f"a[href={_css_attr_literal(href)}]")
+
+    class_value = str(el.get("class") or el.get("class_name") or "").strip()
+    stable_classes = [c for c in re.split(r"\s+", class_value) if _safe_css_identifier(c) and len(c) > 2]
+    if stable_classes:
+        candidates.append(tag + "".join(f".{c}" for c in stable_classes[:2]))
+
+    return candidates
+
+
+def _element_xpath_candidates(el: Dict) -> List[str]:
+    tag = (el.get("tag") or "*").strip().lower() or "*"
+    candidates = []
+    text = re.sub(r"\s+", " ", str(el.get("text") or "").strip())
+    if text and len(text) <= 80:
+        literal = _xpath_literal_value(text)
+        candidates.append(f"//{tag}[normalize-space(.)={literal}]")
+        if tag not in {"button", "a", "input", "textarea", "select"}:
+            candidates.append(f"//*[self::button or self::a or @role='button' or @role='link'][normalize-space(.)={literal}]")
+    return candidates
+
+
+def _locator_candidates_for_element(el: Dict) -> List[Dict[str, Any]]:
+    candidates: List[Dict[str, Any]] = []
+    locator_specs = [
+        ("id", 100, By.ID, str(el.get("id") or "").strip(), "id: {}"),
+        ("name", 92, By.NAME, str(el.get("name") or "").strip(), "name: {}"),
+    ]
+    for kind, score, by_type, raw_value, hint_template in locator_specs:
+        if raw_value:
+            candidates.append({
+                "strategy": kind,
+                "by": by_type,
+                "selector": raw_value,
+                "hint": hint_template.format(_safe_locator_value(raw_value)),
+                "base_score": score
+            })
+
+    for css_selector in _element_css_candidates(el):
+        candidates.append({
+            "strategy": "css",
+            "by": By.CSS_SELECTOR,
+            "selector": css_selector,
+            "hint": f"css: {css_selector}",
+            "base_score": 82
+        })
+
+    for xpath in _element_xpath_candidates(el):
+        candidates.append({
+            "strategy": "xpath",
+            "by": By.XPATH,
+            "selector": xpath,
+            "hint": f"xpath: {xpath}",
+            "base_score": 72
+        })
+
+    aria_label = str(el.get("aria-label") or "").strip()
+    if aria_label:
+        css_selector = f"[aria-label={_css_attr_literal(aria_label)}]"
+        candidates.append({
+            "strategy": "aria-label",
+            "by": By.CSS_SELECTOR,
+            "selector": css_selector,
+            "hint": f"aria-label: {_safe_locator_value(aria_label)}",
+            "base_score": 70
+        })
+
+    placeholder = str(el.get("placeholder") or "").strip()
+    if placeholder:
+        css_selector = f"input[placeholder={_css_attr_literal(placeholder)}], textarea[placeholder={_css_attr_literal(placeholder)}]"
+        candidates.append({
+            "strategy": "placeholder",
+            "by": By.CSS_SELECTOR,
+            "selector": css_selector,
+            "hint": f"css: {css_selector}",
+            "base_score": 65
+        })
+
+    return candidates
+
+
+def _visible_enabled_stats(elements: List[Any]) -> Dict[str, Any]:
+    visible = 0
+    enabled = 0
+    for found in elements:
+        try:
+            if found.is_displayed():
+                visible += 1
+                if found.is_enabled():
+                    enabled += 1
+        except Exception:
+            continue
+    return {"visible": visible, "enabled": enabled, "total": len(elements)}
+
+
+def _validate_single_element_locator(driver, el: Dict) -> Dict:
+    validated = dict(el)
+    tested = []
+
+    for candidate in _locator_candidates_for_element(el):
+        try:
+            found = driver.find_elements(candidate["by"], candidate["selector"])
+        except Exception as exc:
+            tested.append({
+                "strategy": candidate["strategy"],
+                "selector": candidate["selector"],
+                "status": "invalid_selector",
+                "error": str(exc)[:120]
+            })
+            continue
+
+        stats = _visible_enabled_stats(found)
+        tested.append({
+            "strategy": candidate["strategy"],
+            "selector": candidate["selector"],
+            "matches": stats["total"],
+            "visible": stats["visible"],
+            "enabled": stats["enabled"]
+        })
+
+        if stats["visible"] == 0:
+            continue
+
+        score = candidate["base_score"]
+        if stats["total"] > 1:
+            score -= min(25, 8 + stats["total"])
+        if stats["enabled"] == 0:
+            score -= 15
+        try:
+            crawler_visibility = float(str(el.get("visibility_percent") or "100").replace(",", "."))
+            if crawler_visibility < 50:
+                score -= 10
+        except Exception:
+            pass
+        try:
+            if str(el.get("is_clickable") or "").lower() == "false" and (el.get("tag") or "").lower() in {"button", "a"}:
+                score -= 8
+        except Exception:
+            pass
+
+        validated.update({
+            "validatedLocator": candidate["hint"],
+            "validatedLocatorStrategy": candidate["strategy"],
+            "validatedSelector": candidate["selector"],
+            "locatorConfidence": max(0, min(100, int(score))),
+            "locatorMatches": stats["total"],
+            "locatorVisibleMatches": stats["visible"],
+            "reliable": score >= 60,
+            "locatorValidationTested": tested
+        })
+        return validated
+
+    validated.update({
+        "validatedLocator": "",
+        "validatedLocatorStrategy": "none",
+        "validatedSelector": "",
+        "locatorConfidence": 0,
+        "locatorMatches": 0,
+        "locatorVisibleMatches": 0,
+        "reliable": False,
+        "locatorValidationTested": tested
+    })
+    return validated
+
+
+def _element_validation_priority(el: Dict) -> int:
+    score = 0
+    tag = (el.get("tag") or "").lower()
+    field_type = (el.get("type") or "").lower()
+    role = (el.get("role") or "").lower()
+    text_blob = _normalize_for_match(" ".join(str(el.get(k, "")) for k in [
+        "id", "name", "placeholder", "aria-label", "text", "data-testid", "mlRole"
+    ]))
+
+    if tag in {"input", "textarea", "select"}:
+        score += 50
+    if tag == "button" or role == "button":
+        score += 35
+    if tag == "a":
+        score += 20
+    if field_type in {"password", "email", "search", "tel", "number"}:
+        score += 25
+    if any(term in text_blob for term in ("search", "recherche", "query", "keyword", "password", "email", "login", "username")):
+        score += 25
+    if el.get("id"):
+        score += 20
+    if el.get("name"):
+        score += 15
+    if el.get("data-testid") or el.get("data-test"):
+        score += 12
+    if el.get("aria-label") or el.get("placeholder"):
+        score += 8
+    try:
+        score += min(10, int(float(str(el.get("visibility_percent") or "0").replace(",", ".")) / 10))
+    except Exception:
+        pass
+    return score
+
+
+def _load_page_for_locator_validation(executor: GherkinExecutor, url: str) -> None:
+    driver = executor.driver
+    driver.set_page_load_timeout(LOCATOR_VALIDATION_PAGELOAD_TIMEOUT)
+    try:
+        if str(url or "").startswith(("file:", "data:")):
+            driver.get(url)
+        else:
+            driver.get(executor._normalize_url(url))
+        WebDriverWait(driver, 20).until(
+            lambda d: d.execute_script("return document.readyState") in {"interactive", "complete"}
+        )
+    except SeleniumTimeoutException:
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+    except Exception:
+        raise
+
+
+def _validate_elements_locators_in_current_dom(url: str, elements_dicts: List[Dict]) -> tuple[List[Dict], Dict[str, Any]]:
+    """Validate locators inside ANALYSE using a real Selenium DOM session."""
+    if not elements_dicts:
+        return [], {"total": 0, "reliable": 0, "unreliable": 0}
+
+    sorted_elements = sorted(elements_dicts, key=_element_validation_priority, reverse=True)
+    elements_to_validate = sorted_elements[:MAX_LOCATOR_VALIDATION_ELEMENTS]
+    skipped_elements = sorted_elements[MAX_LOCATOR_VALIDATION_ELEMENTS:]
+
+    executor = GherkinExecutor(headless=True, implicit_wait=3)
+    validated: List[Dict] = []
+    summary: Dict[str, Any] = {
+        "total": len(elements_dicts),
+        "reliable": 0,
+        "unreliable": 0,
+        "validated": len(elements_to_validate),
+        "skipped_by_limit": len(skipped_elements),
+        "validation_limit": MAX_LOCATOR_VALIDATION_ELEMENTS,
+        "by_strategy": {},
+        "errors": []
+    }
+
+    try:
+        executor.start_driver()
+        _load_page_for_locator_validation(executor, url)
+        executor._dismiss_cookie_banner_if_present()
+        for el in elements_to_validate:
+            checked = _validate_single_element_locator(executor.driver, el)
+            validated.append(checked)
+            if checked.get("reliable"):
+                summary["reliable"] += 1
+                strategy = checked.get("validatedLocatorStrategy") or "unknown"
+                summary["by_strategy"][strategy] = summary["by_strategy"].get(strategy, 0) + 1
+            else:
+                summary["unreliable"] += 1
+        for el in skipped_elements:
+            checked = dict(el)
+            checked.update({
+                "validatedLocator": "",
+                "validatedLocatorStrategy": "skipped_by_limit",
+                "validatedSelector": "",
+                "locatorConfidence": 0,
+                "locatorMatches": 0,
+                "locatorVisibleMatches": 0,
+                "reliable": False,
+                "locatorValidationSkipped": "validation_limit"
+            })
+            validated.append(checked)
+            summary["unreliable"] += 1
+    except Exception as exc:
+        summary["errors"].append(str(exc))
+        for el in elements_dicts:
+            checked = dict(el)
+            checked.update({
+                "validatedLocator": "",
+                "validatedLocatorStrategy": "validation_error",
+                "validatedSelector": "",
+                "locatorConfidence": 0,
+                "reliable": False,
+                "locatorValidationError": str(exc)
+            })
+            validated.append(checked)
+        summary["reliable"] = 0
+        summary["unreliable"] = len(elements_dicts)
+    finally:
+        try:
+            executor.stop_driver()
+        except Exception:
+            pass
+
+    return validated, summary
+
+
+def _python_locator_from_hint(locator_hint: str) -> Optional[str]:
+    locator_hint = str(locator_hint or "").strip()
+    if not locator_hint or ":" not in locator_hint:
+        return None
+    kind, value = locator_hint.split(":", 1)
+    kind = kind.strip().lower()
+    value = value.strip()
+    if kind == "id":
+        return f"(By.ID, {value!r})"
+    if kind == "name":
+        return f"(By.NAME, {value!r})"
+    if kind == "css":
+        return f"(By.CSS_SELECTOR, {value!r})"
+    if kind == "xpath":
+        return f"(By.XPATH, {value!r})"
+    if kind in {"aria-label", "aria"}:
+        xpath = f"//*[contains(@aria-label, {_xpath_literal_value(value)})]"
+        return f"(By.XPATH, {xpath!r})"
+    return None
+
+
+def _script_action_for_element(el: Dict, index: int) -> Optional[str]:
+    locator_expr = _python_locator_from_hint(el.get("validatedLocator", ""))
+    if not locator_expr:
+        return None
+
+    tag = (el.get("tag") or "").lower()
+    field_type = (el.get("type") or "").lower()
+    label = _element_display_name(el).replace("'", "\\'")
+    test_value = _test_value_for_field(el).replace("'", "\\'")
+
+    if tag in {"input", "textarea"} and field_type not in {"hidden", "button", "submit", "checkbox", "radio"}:
+        return (
+            f"print('STEP: remplir {label}')\n"
+            f"type_text({locator_expr}, '{test_value}')\n"
+        )
+
+    if tag == "select":
+        return (
+            f"print('STEP: selectionner {label}')\n"
+            f"select_first_available({locator_expr})\n"
+        )
+
+    if _is_button_like(el):
+        return (
+            f"print('STEP: verifier bouton {label}')\n"
+            f"wait_visible({locator_expr})\n"
+        )
+
+    if tag == "a":
+        return (
+            f"print('STEP: verifier lien {label}')\n"
+            f"wait_visible({locator_expr})\n"
+        )
+
+    return (
+        f"print('STEP: verifier element {index}')\n"
+        f"wait_visible({locator_expr})\n"
+    )
+
+
+def _build_validated_selenium_script(url: str, objective: str, elements: List[Dict], codet5_raw: str = "") -> str:
+    actions = []
+    for idx, el in enumerate(elements[:20], start=1):
+        action = _script_action_for_element(el, idx)
+        if action:
+            actions.append(action)
+
+    actions_code = "\n".join(actions) if actions else "print('Aucun élément fiable à tester')"
+    codet5_commented = "\n".join("# CodeT5> " + line for line in str(codet5_raw or "").splitlines() if line.strip())
+    actions_code = "\n".join(("    " + line) if line else "" for line in actions_code.splitlines())
+    codet5_commented = "\n".join(("    " + line) if line else "" for line in codet5_commented.splitlines())
+
+    return f'''# Script Selenium généré avec locators validés uniquement
+# Objectif: {objective}
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+import time
+
+chrome_options = Options()
+chrome_options.add_argument("--start-maximized")
+chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+driver = webdriver.Chrome(options=chrome_options)
+wait = WebDriverWait(driver, 15)
+
+def dismiss_overlays():
+    terms = ["accept", "accept all", "accepter", "tout accepter", "reject", "refuser", "continuer", "ok", "fermer", "close"]
+    lowered = "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸ"
+    uppered = "abcdefghijklmnopqrstuvwxyzàâäçéèêëîïôöùûüÿ"
+    for term in terms:
+        xpath = "//*[self::button or self::a or self::div or self::span or @role='button'][contains(translate(concat(normalize-space(.), ' ', @aria-label, ' ', @title), '%s', '%s'), '%s')]" % (lowered, uppered, term)
+        try:
+            for el in driver.find_elements(By.XPATH, xpath)[:2]:
+                if el.is_displayed() and el.is_enabled():
+                    driver.execute_script("arguments[0].click();", el)
+                    time.sleep(0.2)
+        except Exception:
+            pass
+
+def wait_visible(locator):
+    dismiss_overlays()
+    return wait.until(EC.visibility_of_element_located(locator))
+
+def wait_clickable(locator):
+    dismiss_overlays()
+    return wait.until(EC.element_to_be_clickable(locator))
+
+def type_text(locator, value):
+    el = wait_clickable(locator)
+    el.clear()
+    if value:
+        el.send_keys(value)
+        actual = el.get_attribute("value") or el.text or ""
+        assert value in actual, "La saisie n'est pas arrivée dans le champ validé"
+    return el
+
+def select_first_available(locator):
+    el = wait_visible(locator)
+    select = Select(el)
+    if len(select.options) > 1:
+        select.select_by_index(1)
+    return el
+
+try:
+    driver.get({url!r})
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    dismiss_overlays()
+    print("Page chargée:", driver.current_url)
+
+{codet5_commented}
+
+{actions_code}
+
+    print("SUCCESS: Tous les éléments fiables ont été testés avec leurs locators validés")
+finally:
+    time.sleep(1)
+    driver.quit()
+'''
+
+
 def _scenario_matches_focus(scenario: Dict, focus_objective: str) -> bool:
     tokens = _focus_tokens(focus_objective)
     if not tokens:
@@ -891,9 +1505,11 @@ INSTRUCTIONS CRITIQUES:
 1. En mode complet, génère entre 12 et 18 scénarios si la page contient assez d'éléments interactifs. En mode ciblé, respecte strictement le focus.
 2. Les scénarios doivent être différents: parcours nominal, champs obligatoires, formats invalides, limites, navigation, liens, boutons, accessibilité, erreurs visibles, régression.
 3. Chaque scénario doit utiliser des données de test précises: exemples d'email, mot de passe faible/fort, texte long, champ vide, recherche inexistante, numéro invalide, etc.
-4. Base-toi UNIQUEMENT sur les éléments listés dans la Page Analysis. N'invente pas de locator.
-5. UTILISE TOUJOURS les sélecteurs concrets: Pour chaque action (When/And), privilégie `(id: identifiant)` ou `(name: valeur)` listé dans la 'Page Analysis'. Ex: `When l'utilisateur clique sur le bouton "Search" (id: search-icon-legacy)`.
-   Si aucun id/name n'existe, utilise `(css: textarea)`, `(css: [role='textbox'])`, `(css: [role='combobox'])` ou `(xpath: //textarea)`.
+4. Base-toi UNIQUEMENT sur les éléments fiables listés dans la Page Analysis. N'invente jamais de locator.
+5. UTILISE TOUJOURS le champ `(validated-locator: ...)` fourni pour chaque élément. C'est le seul locator autorisé pour les actions When/And/Then.
+   Si un élément n'a pas de `validated-locator`, tu ne dois pas l'utiliser dans un scénario.
+   Ne transforme pas un locator et ne le remplace pas par un locator plausible.
+   Exemple: si Page Analysis donne `(validated-locator: css: input[type='search'])`, écris exactement `(css: input[type='search'])`.
    ÉVITE le format `(role: ...)` dans les nouveaux scénarios sauf si aucun autre locator n'est possible.
    Pour les champs sensibles, sois strict: username/login doit utiliser le locator du champ username, password/mot de passe doit utiliser le locator du champ password. Ne réutilise jamais le locator username pour le password.
    Si un champ password a un `id` ou `name`, utilise toujours `(id: ...)` ou `(name: ...)`; n'utilise `(css: input[type='password'])` que si aucun id/name n'existe.
@@ -978,6 +1594,7 @@ def _ensure_minimum_scenarios(
         needed = minimum - len(merged)
         merged.extend(_build_targeted_supplemental_scenarios(url, elements_dicts, needed, focus_objective))
 
+    merged = [_repair_scenario_locators_with_validated_elements(scenario, elements_dicts) for scenario in merged]
     return _limit_diverse_scenarios(_deduplicate_scenarios(merged), max_count)
 
 
@@ -1190,6 +1807,10 @@ def _scenario_dict(title: str, scenario_type: str, description: str, expected: s
 
 
 def _locator_hint(el: Dict) -> str:
+    validated_locator = str(el.get("validatedLocator") or "").strip()
+    if validated_locator:
+        return validated_locator
+
     for key in ("id", "name"):
         value = str(el.get(key) or "").strip()
         if value:

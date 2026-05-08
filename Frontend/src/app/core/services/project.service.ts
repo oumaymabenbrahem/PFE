@@ -9,6 +9,7 @@ import { ProjectRequest, ProjectResponse } from '../../shared/models/project.mod
 })
 export class ProjectService {
   private readonly API_URL = 'http://localhost:8081/api/projects';
+  private readonly GENERATE_TESTS_TIMEOUT_MS = 900000; // 15 minutes: crawl + locator validation + IA can be slow.
 
   constructor(private httpClient: HttpClient) {}
 
@@ -100,12 +101,14 @@ export class ProjectService {
       `${this.API_URL}/${projectId}/generate-tests`,
       {}
     ).pipe(
-      timeout(300000), // 300s (5 minutes) timeout pour éviter le timeout lors du crawling + IA lourd
+      timeout(this.GENERATE_TESTS_TIMEOUT_MS),
       catchError(error => {
         console.error('Erreur lors de la génération des tests:', error);
         let errorMessage = 'Erreur lors de la génération des tests';
         
-        if (error.error && error.error.message) {
+        if (error.name === 'TimeoutError') {
+          errorMessage = 'La génération prend trop de temps. Le crawl, la validation des locators et l’IA peuvent dépasser plusieurs minutes sur les sites lourds.';
+        } else if (error.error && error.error.message) {
           errorMessage = error.error.message;
         } else if (error.status === 400) {
           errorMessage = 'Requête invalide. Veuillez vérifier le projet.';
