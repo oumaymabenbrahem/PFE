@@ -897,6 +897,7 @@ INSTRUCTIONS CRITIQUES:
    ÉVITE le format `(role: ...)` dans les nouveaux scénarios sauf si aucun autre locator n'est possible.
    Pour les champs sensibles, sois strict: username/login doit utiliser le locator du champ username, password/mot de passe doit utiliser le locator du champ password. Ne réutilise jamais le locator username pour le password.
    Si un champ password a un `id` ou `name`, utilise toujours `(id: ...)` ou `(name: ...)`; n'utilise `(css: input[type='password'])` que si aucun id/name n'existe.
+   Pour un champ de recherche, n'invente jamais `(name: search)`. Utilise seulement le vrai `id`/`name` listé; sinon utilise un locator générique robuste comme `(css: input[type='search'])`, `(css: [role='searchbox'])`, ou `(css: form[action*='search' i] input)`.
 6. VALIDATION (Then): Utilise EXCLUSIVEMENT ces formats reconnus par l'automate :
    - `Then l'élément (id: identifiant) devrait être visible`
    - `Then l'élément (id: identifiant) ne devrait pas être visible`

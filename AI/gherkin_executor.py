@@ -486,6 +486,102 @@ class GherkinExecutor:
             return nested
         return None
 
+    def _visible_text_inputs(self) -> List[Any]:
+        selectors = [
+            "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='password'])",
+            "textarea",
+            "[contenteditable='true']",
+            "[role='textbox']",
+            "[role='searchbox']",
+        ]
+        inputs = []
+        seen = set()
+        for selector in selectors:
+            try:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+            except Exception:
+                continue
+            for element in elements:
+                try:
+                    element_id = element.id
+                    if element_id in seen:
+                        continue
+                    if element.is_displayed() and element.is_enabled() and self._is_text_entry_element(element):
+                        seen.add(element_id)
+                        inputs.append(element)
+                except Exception:
+                    continue
+        return inputs
+
+    def _open_search_interface(self) -> bool:
+        """Open a collapsed search UI using generic search/recherche affordances."""
+        if not self.driver:
+            return False
+
+        search_terms = ["search", "recherche", "chercher", "rechercher"]
+        label_expression = "concat(@aria-label, ' ', @title, ' ', @placeholder, ' ', @id, ' ', @name, ' ', @class, ' ', normalize-space(.))"
+        label_lookup = self._lower_xpath(label_expression)
+        term_conditions = " or ".join(
+            f"contains({label_lookup}, {self._xpath_literal(term)})" for term in search_terms
+        )
+        strategies = [
+            (By.XPATH, f"//*[self::button or self::a or @role='button' or @type='button' or @type='submit'][{term_conditions}]"),
+            (By.CSS_SELECTOR, "button[aria-label*='search' i], a[aria-label*='search' i], [role='button'][aria-label*='search' i]"),
+            (By.CSS_SELECTOR, "button[aria-label*='recherche' i], a[aria-label*='recherche' i], [role='button'][aria-label*='recherche' i]"),
+            (By.CSS_SELECTOR, "button[class*='search' i], a[class*='search' i], [role='button'][class*='search' i]"),
+        ]
+
+        for by_type, selector_value in strategies:
+            element = self._find_first_usable_element(by_type, selector_value, timeout=0.8, require_enabled=True)
+            if not element:
+                continue
+            try:
+                self._click_element_now(element)
+                time.sleep(0.4)
+                return True
+            except Exception:
+                continue
+        return False
+
+    def _resolve_search_input_semantically(self) -> Optional[Any]:
+        """Find a search input without trusting a stale generated locator."""
+        self._dismiss_cookie_banner_if_present()
+
+        selectors = [
+            (By.CSS_SELECTOR, "input[type='search']"),
+            (By.CSS_SELECTOR, "[role='search'] input:not([type='hidden'])"),
+            (By.CSS_SELECTOR, "form[action*='search' i] input:not([type='hidden'])"),
+            (By.CSS_SELECTOR, "input[role='searchbox']"),
+            (By.CSS_SELECTOR, "[role='searchbox']"),
+            (By.CSS_SELECTOR, "input[name*='search' i], input[id*='search' i], input[class*='search' i]"),
+            (By.CSS_SELECTOR, "input[name*='query' i], input[id*='query' i], input[name='q'], input[id='q']"),
+            (By.CSS_SELECTOR, "input[name*='keyword' i], input[id*='keyword' i], input[class*='keyword' i]"),
+            (By.CSS_SELECTOR, "input[placeholder*='search' i], input[placeholder*='recherche' i], input[aria-label*='search' i], input[aria-label*='recherche' i]"),
+        ]
+
+        for by_type, selector_value in selectors:
+            element = self._find_first_usable_element(by_type, selector_value, timeout=0.9, require_enabled=True)
+            resolved = self._candidate_text_input(element, "search")
+            if resolved:
+                return resolved
+
+        # Many commerce sites expose a single visible text input in the header with a product placeholder.
+        visible_inputs = self._visible_text_inputs()
+        if len(visible_inputs) == 1:
+            return visible_inputs[0]
+
+        if self._open_search_interface():
+            for by_type, selector_value in selectors:
+                element = self._find_first_usable_element(by_type, selector_value, timeout=1.0, require_enabled=True)
+                resolved = self._candidate_text_input(element, "search")
+                if resolved:
+                    return resolved
+            visible_inputs = self._visible_text_inputs()
+            if len(visible_inputs) == 1:
+                return visible_inputs[0]
+
+        return None
+
     def _strip_locator_markup(self, value: str) -> str:
         return re.sub(
             r"\s*\((?:id|name|css|xpath|role|aria-label|aria)\s*:.*\)\s*$",
@@ -604,6 +700,8 @@ class GherkinExecutor:
                 resolved = self._candidate_text_input(element, intent)
                 if resolved:
                     return resolved
+            if intent == "search":
+                return self._resolve_search_input_semantically()
             # A concrete locator must never silently fall back to another field.
             return None
 
@@ -641,8 +739,13 @@ class GherkinExecutor:
         if any(term in candidate_lower for term in ("search", "recherche", "chercher")):
             selectors.extend([
                 (By.CSS_SELECTOR, "input[type='search']"),
+                (By.CSS_SELECTOR, "[role='search'] input:not([type='hidden'])"),
+                (By.CSS_SELECTOR, "form[action*='search' i] input:not([type='hidden'])"),
                 (By.CSS_SELECTOR, "input[name*='search' i]"),
                 (By.CSS_SELECTOR, "input[id*='search' i]"),
+                (By.CSS_SELECTOR, "input[class*='search' i]"),
+                (By.CSS_SELECTOR, "input[name*='query' i], input[id*='query' i], input[name='q'], input[id='q']"),
+                (By.CSS_SELECTOR, "input[name*='keyword' i], input[id*='keyword' i], input[class*='keyword' i]"),
                 (By.CSS_SELECTOR, "input[placeholder*='search' i]"),
                 (By.CSS_SELECTOR, "input[placeholder*='recherche' i]"),
                 (By.CSS_SELECTOR, "[role='searchbox']"),
@@ -677,6 +780,9 @@ class GherkinExecutor:
             resolved = self._candidate_text_input(element, intent)
             if resolved:
                 return resolved
+
+        if intent == "search":
+            return self._resolve_search_input_semantically()
 
         return None
 
@@ -977,6 +1083,7 @@ class GherkinExecutor:
         terms = [
             "accept", "accept all", "accepter", "tout accepter", "j'accepte", "agree", "allow all",
             "reject", "reject all", "refuser", "tout refuser", "continuer", "continue", "got it", "ok",
+            "valider", "confirmer", "autoriser", "allow", "agree", "compris",
             "fermer", "close"
         ]
         label_expression = "concat(normalize-space(.), ' ', @aria-label, ' ', @title, ' ', @value)"
@@ -986,10 +1093,12 @@ class GherkinExecutor:
         )
         strategies.append((
             By.XPATH,
-            "//*[self::button or self::a or @role='button' or @type='button' or @type='submit']"
+            "//*[self::button or self::a or self::div or self::span or @role='button' or @type='button' or @type='submit']"
             f"[{term_conditions}]"
         ))
         strategies.extend([
+            (By.CSS_SELECTOR, "[id*='cookie' i] button, [class*='cookie' i] button, [id*='consent' i] button, [class*='consent' i] button"),
+            (By.CSS_SELECTOR, "[id*='cookie' i] [role='button'], [class*='cookie' i] [role='button'], [id*='consent' i] [role='button'], [class*='consent' i] [role='button']"),
             (By.CSS_SELECTOR, "button[aria-label*='close' i]"),
             (By.CSS_SELECTOR, "[role='button'][aria-label*='close' i]"),
             (By.CSS_SELECTOR, "button[class*='close' i]"),
