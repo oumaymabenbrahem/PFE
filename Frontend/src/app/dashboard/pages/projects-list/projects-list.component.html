@@ -102,9 +102,10 @@
           </h5>
 
           <!-- Description -->
-          <p class="card-description" [title]="project.description">
-            {{ project.description || 'Aucune description' }}
+          <p class="card-description" *ngIf="project.description; else noDesc" [title]="project.description">
+            {{ project.description }}
           </p>
+          <ng-template #noDesc><div class="mb-2"></div></ng-template>
 
           <!-- Méta-informations -->
           <div class="card-meta">
@@ -293,6 +294,17 @@
         <div class="content-box file-detail-box" *ngIf="selectedProjectForDetails.specificationType === 'CODE_FICHIER'">
           <i class="bi bi-file-earmark-text-fill me-2 text-warning"></i>
           <span>{{ getFilename(selectedProjectForDetails.specificationContenu) || 'Aucun fichier' }}</span>
+        </div>
+      </div>
+
+      <!-- Focus / Objectif du test (LIEN_APPLICATION) -->
+      <div class="specification-content mb-4" *ngIf="selectedProjectForDetails.specificationType === 'LIEN_APPLICATION' && selectedProjectForDetails.focusOptionnel">
+        <div class="content-label">
+          <i class="bi bi-bullseye me-2"></i>
+          <span>Focus / Objectif du test</span>
+        </div>
+        <div class="content-box">
+          {{ selectedProjectForDetails.focusOptionnel }}
         </div>
       </div>
 

@@ -35,6 +35,8 @@ public class ChatbotService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final int MAX_HISTORY_MESSAGES = 10;
+
     /**
      * Process user message and generate AI response
      */
@@ -70,22 +72,21 @@ public class ChatbotService {
                 }
             }
 
-            // Build prompt with context
-            String prompt = userMessage;
-            if (includeContext && contextData != null) {
-                prompt = userContextService.buildContextualPrompt(userMessage, contextData);
-            }
+            // Build system prompt with context
+            String systemPrompt = userContextService.buildSystemPrompt(contextData);
 
-            // Call Hugging Face API
+            // Fetch recent conversation history for context
+            List<HuggingFaceClient.ChatMessage> conversationHistory = getRecentConversationHistory(userId);
+
+            // Call Hugging Face API with full context
             String botResponse;
             try {
                 if (!huggingFaceClient.isAvailable()) {
-                    // API not available, skip to fallback directly
                     log.info("Hugging Face API not available, using fallback response");
                     botResponse = generateFallbackResponse(userMessage, contextData);
                 } else {
                     try {
-                        botResponse = huggingFaceClient.generateResponse(prompt);
+                        botResponse = huggingFaceClient.generateResponse(systemPrompt, conversationHistory, userMessage);
                     } catch (Exception hfError) {
                         log.warn("Hugging Face API call failed, using fallback response", hfError);
                         botResponse = generateFallbackResponse(userMessage, contextData);
@@ -114,6 +115,31 @@ public class ChatbotService {
         } catch (Exception e) {
             log.error("Error processing message", e);
             return buildErrorResponse("Une erreur est survenue. Veuillez réessayer.");
+        }
+    }
+
+    /**
+     * Get recent conversation history for context
+     */
+    private List<HuggingFaceClient.ChatMessage> getRecentConversationHistory(UUID userId) {
+        try {
+            List<ChatbotMessage> recentMessages = chatbotMessageRepository
+                .findTop50ByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .limit(MAX_HISTORY_MESSAGES)
+                .toList();
+
+            // Reverse to get chronological order (oldest first)
+            List<HuggingFaceClient.ChatMessage> history = new ArrayList<>();
+            for (int i = recentMessages.size() - 1; i >= 0; i--) {
+                ChatbotMessage msg = recentMessages.get(i);
+                history.add(new HuggingFaceClient.ChatMessage(msg.getUserMessage(), msg.getBotResponse()));
+            }
+
+            return history;
+        } catch (Exception e) {
+            log.warn("Could not fetch conversation history", e);
+            return List.of();
         }
     }
 
@@ -230,49 +256,77 @@ public class ChatbotService {
 
     /**
      * Generate fallback response when HF API fails
-     * Provides intelligent responses based on keywords
+     * Provides contextual responses based on question type and user context
      */
     private String generateFallbackResponse(String userMessage, String contextData) {
         String lowerMessage = userMessage.toLowerCase();
 
+        // Build context info if available
+        String contextInfo = "";
+        if (contextData != null && !contextData.equals("{}")) {
+            try {
+                var contextNode = objectMapper.readTree(contextData);
+                String userName = contextNode.has("userName") ? contextNode.get("userName").asText() : null;
+                int projectCount = contextNode.has("totalProjects") ? contextNode.get("totalProjects").asInt() : 0;
+                if (userName != null && projectCount > 0) {
+                    contextInfo = " " + userName + ", vous avez " + projectCount + " projet(s) sur la plateforme.";
+                }
+            } catch (Exception e) {
+                // Ignore parsing errors in fallback
+            }
+        }
+
+        // Contextual responses for common testing topics
         if (lowerMessage.contains("gherkin") || lowerMessage.contains("bdd")) {
-            return "Gherkin is a Business-Driven Development (BDD) language used to write test scenarios in a human-readable format. " +
-                "It uses keywords like 'Given', 'When', 'Then' to describe test steps. Gherkin scenarios can be executed by automation tools like Selenium.";
+            return "Gherkin est un langage BDD (Behavior-Driven Development) utilisé pour écrire des scénarios de test lisibles. " +
+                "Il utilise les mots-clés 'Soit' (Given), 'Quand' (When), 'Alors' (Then). Sur TEST2i, ces scénarios sont automatiquement " +
+                "transformés en scripts Selenium." + contextInfo;
         }
 
         if (lowerMessage.contains("projet") || lowerMessage.contains("project")) {
-            return "Un projet dans cette application est une collection de scénarios de test BDD. Vous pouvez créer des projets, y ajouter des tests, " +
-                "et exécuter l'automatisation pour valider votre application.";
+            return "Un projet TEST2i regroupe vos scénarios de test BDD. Vous pouvez créer un projet à partir d'une user story, " +
+                "d'un lien GitHub, d'un fichier de code ou d'une URL d'application web." + contextInfo;
         }
 
         if (lowerMessage.contains("test") || lowerMessage.contains("scénario")) {
-            return "Les tests dans cette application sont des scénarios BDD écrits en langage Gherkin. Chaque scénario teste un comportement spécifique " +
-                "de votre application via Selenium automation.";
+            return "Les tests sur TEST2i sont des scénarios BDD en langage Gherkin. L'IA analyse votre application et génère " +
+                "automatiquement des scénarios de test, puis les exécute via Selenium." + contextInfo;
         }
 
         if (lowerMessage.contains("exécuter") || lowerMessage.contains("run") || lowerMessage.contains("lancer")) {
-            return "Pour exécuter vos tests, sélectionnez un projet, choisissez les scénarios à exécuter, puis cliquez sur 'Exécuter'. " +
-                "Les tests s'exécuteront via Selenium dans un navigateur Chrome.";
+            return "Pour exécuter vos tests : sélectionnez un projet, choisissez les scénarios, puis cliquez sur 'Exécuter'. " +
+                "Selenium ouvrira un navigateur Chrome et exécutera les tests automatiquement." + contextInfo;
         }
 
         if (lowerMessage.contains("selenium")) {
-            return "Selenium est un outil d'automatisation des tests qui contrôle un navigateur web. Dans cette application, Selenium exécute " +
-                "vos scénarios Gherkin pour automatiser les tests de votre application.";
+            return "Selenium est un outil d'automatisation de navigateur web. TEST2i l'utilise pour exécuter vos scénarios " +
+                "Gherkin de manière automatisée, avec captures d'écran et rapports détaillés." + contextInfo;
         }
 
         if (lowerMessage.contains("rapport") || lowerMessage.contains("report")) {
-            return "Après l'exécution des tests, vous recevez un rapport détaillé avec le résumé des résultats, des captures d'écran de chaque étape, " +
-                "et la possibilité de télécharger le rapport en PDF.";
+            return "Après l'exécution des tests, TEST2i génère un rapport détaillé avec les résultats, les captures d'écran " +
+                "de chaque étape, et l'export PDF/Jira Xray." + contextInfo;
         }
 
-        if (lowerMessage.contains("erreur") || lowerMessage.contains("error") || lowerMessage.contains("fail")) {
-            return "Si vos tests échouent, vérifiez les logs d'exécution pour voir où le problème s'est produit. " +
-                "Consultez les captures d'écran associées pour mieux comprendre l'erreur.";
+        if (lowerMessage.contains("jira") || lowerMessage.contains("xray")) {
+            return "TEST2i s'intègre avec Jira et Xray pour exporter vos résultats de test directement dans vos tickets. " +
+                "Connectez votre compte Jira depuis les paramètres du profil." + contextInfo;
         }
 
-        // Generic response
-        return "Je suis un assistant pour l'automatisation des tests BDD avec Gherkin et Selenium. " +
-            "Je peux répondre à vos questions sur les projets, les tests, et l'exécution. Posez une question spécifique comme: " +
-            "'Comment écrire un scénario Gherkin?' ou 'Comment exécuter les tests?'";
+        // Greeting
+        if (lowerMessage.contains("bonjour") || lowerMessage.contains("salut") || lowerMessage.contains("hello") || lowerMessage.contains("hi")) {
+            return "Bonjour ! 👋 Je suis l'assistant IA de TEST2i. Je peux vous aider avec les tests d'automatisation, " +
+                "Gherkin, Selenium, vos projets, ou répondre à toute autre question. Comment puis-je vous aider ?" + contextInfo;
+        }
+
+        // Thank you
+        if (lowerMessage.contains("merci") || lowerMessage.contains("thank")) {
+            return "De rien ! 😊 N'hésitez pas si vous avez d'autres questions, que ce soit sur TEST2i ou sur tout autre sujet." + contextInfo;
+        }
+
+        // Dynamic generic response - acknowledge the question and offer help
+        return "Merci pour votre question. Je suis actuellement en mode dégradé (l'IA n'est pas disponible temporairement), " +
+            "mais je peux tout de même vous aider. Sur TEST2i, je peux répondre aux questions sur les tests BDD, Gherkin, " +
+            "Selenium, vos projets et plus encore. Pour des réponses plus détaillées et dynamiques, réessayez dans quelques instants." + contextInfo;
     }
 }

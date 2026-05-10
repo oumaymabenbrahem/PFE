@@ -78,45 +78,76 @@ public class UserContextService {
     }
 
     /**
-     * Build an enhanced prompt with user context
+     * Build a system prompt for the chat completions API with user context
+     */
+    public String buildSystemPrompt(String contextDataJson) {
+        StringBuilder systemPrompt = new StringBuilder();
+
+        systemPrompt.append("Tu es un assistant IA intelligent et polyvalent intégré dans une plateforme de test d'automatisation (TEST2i). ");
+        systemPrompt.append("Tu peux répondre à TOUTES les questions de l'utilisateur, pas seulement celles liées aux tests.\n\n");
+
+        systemPrompt.append("Règles :\n");
+        systemPrompt.append("- Réponds en français si l'utilisateur écrit en français, sinon dans sa langue.\n");
+        systemPrompt.append("- Sois concis, utile et précis.\n");
+        systemPrompt.append("- Si la question concerne les tests, Gherkin, Selenium, BDD ou les projets, utilise ton expertise.\n");
+        systemPrompt.append("- Si la question est générale (programmation, technologie, aide, etc.), réponds de ton mieux.\n");
+        systemPrompt.append("- Ne dis jamais que tu ne peux répondre qu'aux questions de test.\n\n");
+
+        // Add user context if available
+        if (contextDataJson != null && !contextDataJson.isEmpty() && !contextDataJson.equals("{}")) {
+            try {
+                ObjectNode context = (ObjectNode) objectMapper.readTree(contextDataJson);
+
+                String userName = context.get("userName") != null ? context.get("userName").asText() : null;
+                if (userName != null) {
+                    systemPrompt.append("Contexte utilisateur :\n");
+                    systemPrompt.append("- Nom : ").append(userName).append("\n");
+                }
+
+                int projectCount = context.get("totalProjects") != null ? context.get("totalProjects").asInt() : 0;
+                if (projectCount > 0) {
+                    systemPrompt.append("- Projets : ").append(projectCount);
+                    if (context.get("projectNames") != null) {
+                        systemPrompt.append(" (").append(context.get("projectNames").asText()).append(")");
+                    }
+                    systemPrompt.append("\n");
+                }
+
+                int testCount = context.get("totalTestScripts") != null ? context.get("totalTestScripts").asInt() : 0;
+                if (testCount > 0) {
+                    systemPrompt.append("- Scripts de test : ").append(testCount).append("\n");
+                }
+
+                String recentProject = context.get("recentProject") != null ? context.get("recentProject").asText() : null;
+                if (recentProject != null) {
+                    systemPrompt.append("- Projet récent : ").append(recentProject);
+                    if (context.get("recentProjectStatus") != null) {
+                        systemPrompt.append(" (").append(context.get("recentProjectStatus").asText()).append(")");
+                    }
+                    systemPrompt.append("\n");
+                }
+
+                String questionType = context.get("questionType") != null ? context.get("questionType").asText() : null;
+                if (questionType != null) {
+                    systemPrompt.append("- Type de question : ").append(questionType).append("\n");
+                }
+
+            } catch (Exception e) {
+                log.debug("Could not parse context data for system prompt", e);
+            }
+        }
+
+        systemPrompt.append("\nPlateforme TEST2i : Création de projets de test, génération de scénarios Gherkin via IA, ");
+        systemPrompt.append("exécution Selenium automatisée, rapports détaillés, intégration Jira/Xray.");
+
+        return systemPrompt.toString();
+    }
+
+    /**
+     * Build an enhanced prompt with user context (legacy method)
      */
     public String buildContextualPrompt(String userQuestion, String contextDataJson) {
-        try {
-            ObjectNode context = (ObjectNode) objectMapper.readTree(contextDataJson);
-
-            StringBuilder prompt = new StringBuilder();
-            prompt.append("You are a helpful testing automation assistant. ");
-            prompt.append("You have knowledge about BDD, Gherkin, Selenium testing, and more.\n");
-
-            String userName = context.get("userName") != null ? context.get("userName").asText() : "User";
-            prompt.append("\nUser: ").append(userName).append("\n");
-
-            Integer projectCount = context.get("totalProjects") != null ?
-                context.get("totalProjects").asInt() : 0;
-            if (projectCount > 0) {
-                prompt.append("The user has ").append(projectCount).append(" projects.\n");
-            }
-
-            Integer testCount = context.get("totalTestScripts") != null ?
-                context.get("totalTestScripts").asInt() : 0;
-            if (testCount > 0) {
-                prompt.append("They have ").append(testCount).append(" test scripts.\n");
-            }
-
-            prompt.append("\nQuestion type: ").append(
-                context.get("questionType") != null ?
-                    context.get("questionType").asText() : "general"
-            ).append("\n");
-
-            prompt.append("\nUser question: ").append(userQuestion).append("\n");
-            prompt.append("\nPlease provide a helpful and concise answer in French if the user speaks French, otherwise in English.");
-
-            return prompt.toString();
-
-        } catch (Exception e) {
-            log.error("Error building contextual prompt", e);
-            return userQuestion;
-        }
+        return buildSystemPrompt(contextDataJson);
     }
 
     private String categorizeQuestion(String questionLower) {
