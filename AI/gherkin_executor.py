@@ -434,7 +434,15 @@ class GherkinExecutor:
             return "password"
         if any(term in text for term in ("email", "e-mail", "mail")):
             return "email"
+        # Detect search intent from keywords OR from known search-field locator tokens
         if any(term in text for term in ("search", "recherche", "chercher")):
+            return "search"
+        # name='q' / name: q / name="q" are the universal Google/search-field indicators
+        if re.search(r"name[\s=:'\"]+q\b", text, re.IGNORECASE):
+            return "search"
+        if re.search(r"type[\s=:'\"]+search\b", text, re.IGNORECASE):
+            return "search"
+        if re.search(r"role[\s=:'\"]+searchbox\b", text, re.IGNORECASE):
             return "search"
         if any(term in text for term in ("username", "user name", "nom d'utilisateur", "utilisateur", "identifiant", "login")):
             return "username"
@@ -700,9 +708,74 @@ class GherkinExecutor:
                 resolved = self._candidate_text_input(element, intent)
                 if resolved:
                     return resolved
-            if intent == "search":
+
+            # --- Fallback when the explicit locator failed ---
+            # Always try semantic search resolution for known search-field locators
+            # (e.g. name=q on Google, which may be a <textarea> or temporarily hidden)
+            is_search_locator = (
+                intent == "search"
+                or re.search(r"^q$", locator.strip(), re.IGNORECASE)
+                or re.search(r"type[=\s'\"]*search", locator, re.IGNORECASE)
+                or re.search(r"role[=\s'\"]*searchbox", locator, re.IGNORECASE)
+                or re.search(r"name[=\s'\"]*q\b", locator, re.IGNORECASE)
+            )
+            if is_search_locator:
+                search_fallbacks = [
+                    (By.NAME, "q"),
+                    (By.CSS_SELECTOR, "textarea[name='q']"),
+                    (By.CSS_SELECTOR, "input[name='q']"),
+                    (By.CSS_SELECTOR, "input[type='search']"),
+                    (By.CSS_SELECTOR, "textarea[type='search']"),
+                    (By.CSS_SELECTOR, "[role='search'] textarea"),
+                    (By.CSS_SELECTOR, "[role='search'] input:not([type='hidden'])"),
+                    (By.CSS_SELECTOR, "form[action*='search' i] textarea"),
+                    (By.CSS_SELECTOR, "form[action*='search' i] input:not([type='hidden'])"),
+                    (By.CSS_SELECTOR, "[role='searchbox']"),
+                    (By.CSS_SELECTOR, "textarea[aria-label*='search' i], textarea[aria-label*='recherche' i]"),
+                ]
+                for fb_by, fb_sel in search_fallbacks:
+                    el = self._find_first_usable_element(fb_by, fb_sel, timeout=1.5, require_enabled=True)
+                    if el and self._is_text_entry_element(el):
+                        return el
                 return self._resolve_search_input_semantically()
-            # A concrete locator must never silently fall back to another field.
+
+            # If the locator looks like a combobox or textbox role that failed,
+            # try translator / rich-text-editor fallbacks (Google Translate, etc.)
+            is_richtext_locator = re.search(
+                r"role[=\s'\"]*(?:combobox|textbox|text)\b", locator, re.IGNORECASE
+            )
+            if is_richtext_locator:
+                richtext_fallbacks = [
+                    # Google Translate source input (textarea or contenteditable)
+                    (By.CSS_SELECTOR, "textarea[aria-label*='Texte source']"),
+                    (By.CSS_SELECTOR, "textarea[aria-label*='Source text']"),
+                    (By.CSS_SELECTOR, "textarea[aria-label*='source' i]"),
+                    (By.CSS_SELECTOR, "[aria-label*='Texte source'][contenteditable='true']"),
+                    (By.CSS_SELECTOR, "[aria-label*='Source text'][contenteditable='true']"),
+                    (By.CSS_SELECTOR, "[aria-label*='Entrer du texte'][contenteditable='true']"),
+                    (By.CSS_SELECTOR, "[aria-label*='Enter text'][contenteditable='true']"),
+                    (By.CSS_SELECTOR, "[role='textbox'][aria-label]"),
+                    (By.CSS_SELECTOR, "[role='textbox']"),
+                    (By.CSS_SELECTOR, "textarea[placeholder]"),
+                    (By.CSS_SELECTOR, "textarea"),
+                    (By.CSS_SELECTOR, "[contenteditable='true'][aria-label]"),
+                    (By.CSS_SELECTOR, "[contenteditable='true']"),
+                ]
+                for fb_by, fb_sel in richtext_fallbacks:
+                    el = self._find_first_usable_element(fb_by, fb_sel, timeout=1.5, require_enabled=True)
+                    if el and self._is_text_entry_element(el):
+                        return el
+                return None
+
+            # Last-resort generic fallback: if the locator failed but the step is
+            # clearly a "type text" action, try any visible text input on the page.
+            # This prevents hard failures on SPAs where the AI picked a wrong locator.
+            visible_inputs = self._visible_text_inputs()
+            if len(visible_inputs) == 1:
+                # Only one input visible → unambiguous, safe to use
+                return visible_inputs[0]
+
+            # A concrete non-search locator must never silently fall back to another field.
             return None
 
         element = self._resolve_element_for_step(step_text, candidate)

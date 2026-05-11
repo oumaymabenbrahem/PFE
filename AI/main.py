@@ -751,6 +751,23 @@ def _parse_scenarios_from_generated_text(generated_text: str, selected_default: 
     return _deduplicate_scenarios(scenarios)
 
 
+# ISO language codes for translation site URL repair
+_LANG_URL_MAP: Dict[str, str] = {
+    "anglais": "en", "english": "en",
+    "francais": "fr", "french": "fr",
+    "arabe": "ar", "arabic": "ar",
+    "espagnol": "es", "spanish": "es",
+    "allemand": "de", "german": "de",
+    "italien": "it", "italian": "it",
+    "portugais": "pt", "portuguese": "pt",
+    "chinois": "zh", "chinese": "zh-CN",
+    "japonais": "ja", "japanese": "ja",
+    "russe": "ru", "russian": "ru",
+    "turc": "tr", "turkish": "tr",
+    "coreen": "ko", "korean": "ko",
+}
+
+
 def _repair_scenario_logic(scenario: Dict) -> Dict:
     """Fix common LLM contradictions before scenarios reach Selenium."""
     gherkin = str(scenario.get("senario", ""))
@@ -759,6 +776,23 @@ def _repair_scenario_logic(scenario: Dict) -> Dict:
 
     # RTL text is sometimes generated reversed by the LLM/PDF extraction examples.
     gherkin = re.sub(r'"\s*ابحرم\s*"', '"مرحبا"', gherkin)
+
+    # Fix URL-language inconsistency on translation sites.
+    # e.g. title "en Anglais" + URL tl=ar  ->  patch URL to tl=en
+    _title_norm = _normalize_for_match(scenario.get("nomSenario", ""))
+    _detected_code = None
+    for _tlkw, _tlcode in _LANG_URL_MAP.items():
+        _tlkw_norm = _normalize_for_match(_tlkw)
+        if re.search(rf"(?:en|vers|to|langue\s+)\s*{_tlkw_norm}", _title_norm):
+            _detected_code = _tlcode
+            break
+    if _detected_code:
+        _repaired = []
+        for _rln in gherkin.splitlines():
+            if re.search(r"\btl=[a-zA-Z-]+", _rln):
+                _rln = re.sub(r"\btl=[a-zA-Z-]+", f"tl={_detected_code}", _rln)
+            _repaired.append(_rln)
+        gherkin = "\n".join(_repaired)
 
     negative_url_tokens = re.findall(
         r"Then\s+l['’]?URL(?:\s+de\s+la\s+page)?\s+ne\s+(?:devrait|doit)\s+pas\s+contenir\s+\"([^\"]+)\"",
@@ -1529,6 +1563,9 @@ INSTRUCTIONS CRITIQUES:
    - Pour les sites de traduction, n'invente pas de traduction. N'écris jamais les textes RTL à l'envers: utilise la forme affichée normalement, ex: `مرحبا`, jamais une chaîne inversée.
    - Ignore les boutons de navigation globale/header qui ne contrôlent pas directement le widget testé; utilise seulement les champs, boutons et menus liés au formulaire ou composant principal.
    - Si aucun locator fiable de sélection de langue/option n'est listé, évite les étapes manuelles de choix et teste plutôt la saisie + visibilité du champ/résultat.
+   - COHÉRENCE URL-LANGUE: Pour les sites de traduction (Google Translate, DeepL, etc.), le paramètre `tl=` de l'URL DOIT correspondre à la langue cible du scénario.
+     Scénario "en Anglais" -> `tl=en`. "en Arabe" -> `tl=ar`. "en Français" -> `tl=fr`. "en Espagnol" -> `tl=es`.
+     NE JAMAIS garder `tl=ar` dans le Given si le scénario dit "en Anglais".
 9. Format EXACT (crucial pour le parsing):
 
 ### SCENARIO: [Nom du scénario]
