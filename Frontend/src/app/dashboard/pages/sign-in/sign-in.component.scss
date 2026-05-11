@@ -298,7 +298,7 @@
 .field-container {
     position: relative;
     background: rgba(255, 255, 255, 0.7);
-    border: 1.5px solid rgba(27, 93, 147, 0.2);
+    border: 1.5px solid #1b5d93;
     border-radius: 16px;
     overflow: visible;
     transition: all 0.3s ease;
@@ -309,7 +309,7 @@
 
 .field-container:focus-within {
     border-color: #1b5d93;
-    box-shadow: 0 0 0 3px rgba(27, 93, 147, 0.1);
+    box-shadow: 0 0 0 4px rgba(27, 93, 147, 0.12);
     background: rgba(255, 255, 255, 0.95);
 }
 
@@ -331,6 +331,36 @@
 
 .soft-field input::placeholder {
     color: transparent;
+}
+
+/* ── Neutralize Chrome / Edge autofill styling ──────────────────────────
+   Chrome overrides background-color when it autofills the email field,
+   which makes the border look different from the password field.
+   We fake the background using an inset box-shadow (the only property
+   that survives the autofill override) and force the correct text color. */
+.soft-field input:-webkit-autofill,
+.soft-field input:-webkit-autofill:hover,
+.soft-field input:-webkit-autofill:focus,
+.soft-field input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 56px rgba(255, 255, 255, 0.95) inset !important;
+    -webkit-text-fill-color: #1b5d93 !important;
+    caret-color: #1b5d93;
+    /* Delay background reset so the transition feels smooth */
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Also float the label when the field is autofilled */
+.soft-field input:-webkit-autofill + label {
+    top: 0;
+    left: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1b5d93;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.96);
+    padding: 0 4px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 
 /* Floating Label - Default (Empty State) */
@@ -392,6 +422,26 @@
 }
 
 /* Password Toggle */
+/* Hide browser's native password reveal button (Chrome, Edge, IE) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+/* Chrome/Edge Chromium native reveal button */
+input[type="password"]::-webkit-textfield-decoration-container {
+    display: none !important;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    height: 0;
+    width: 0;
+    margin: 0;
+}
+
 .soft-field:has(.gentle-toggle) input {
     padding-right: 60px;
 }
