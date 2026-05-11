@@ -7,7 +7,7 @@ import { ScriptService } from '../../../core/services/script.service';
   styleUrls: ['./test-scripts.component.scss']
 })
 export class TestScriptsComponent {
-  frameworks: string[] = ['Selenium', 'Cypress', 'Playwright', 'Puppeteer', 'Cucumber', 'Pytest (API)'];
+  frameworks: string[] = ['Selenium', 'Cypress', 'Playwright', 'Puppeteer', 'Cucumber'];
   languages: string[] = ['Python', 'Java', 'JavaScript', 'TypeScript'];
 
   selectedFramework = 'Selenium';
