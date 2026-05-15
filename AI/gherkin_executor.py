@@ -178,7 +178,7 @@ class GherkinExecutor:
             re.IGNORECASE
         ),
         "assert_text_visible": re.compile(
-            r"(?:Then|Alors).*?(?:(?:la|the|le)\s+)?(?:texte\s+)?['\"]?([^'\"]+)['\"]?\s+(?:should\s+|devrait\s+|doit\s+)?(?:be\s+)?(?:visible|affich[ée]|appara[îi]t)",
+            r"(?:Then|Alors).*?(?:(?:la|the|le)\s+)?(?:texte\s+)?['\"]?([^'\"]+)['\"]?\s+(?:should\s+|devrait\s+|doit\s+)?(?:(?:be|[êe]tre)\s+)?(?:visible|affich[ée]|appara[îi]t)",
             re.IGNORECASE
         ),
         "assert_element_enabled": re.compile(
