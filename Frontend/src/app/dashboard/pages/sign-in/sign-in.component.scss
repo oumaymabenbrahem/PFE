@@ -76,18 +76,23 @@
 }
 
 @keyframes softFloat {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translate(0, 0) rotate(0deg) scale(1);
         border-radius: 50% 40% 60% 30%;
     }
+
     25% {
         transform: translate(30px, -20px) rotate(90deg) scale(1.1);
         border-radius: 40% 60% 30% 50%;
     }
+
     50% {
         transform: translate(-20px, -30px) rotate(180deg) scale(0.9);
         border-radius: 60% 30% 50% 40%;
     }
+
     75% {
         transform: translate(-30px, 20px) rotate(270deg) scale(1.05);
         border-radius: 30% 50% 40% 60%;
@@ -112,7 +117,7 @@
     backdrop-filter: blur(20px);
     border-radius: 32px;
     padding: 48px 40px;
-    box-shadow: 
+    box-shadow:
         0 20px 40px rgba(0, 0, 0, 0.03),
         0 8px 24px rgba(0, 0, 0, 0.02),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -156,17 +161,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 
+    box-shadow:
         0 8px 16px rgba(27, 93, 147, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.6);
     animation: gentleBreathe 4s ease-in-out infinite;
 }
 
 @keyframes gentleBreathe {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         box-shadow: 0 8px 16px rgba(27, 93, 147, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
+
     50% {
         transform: scale(1.05);
         box-shadow: 0 12px 20px rgba(27, 93, 147, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -174,10 +182,13 @@
 }
 
 @keyframes successBreathe {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         box-shadow: 0 8px 16px rgba(27, 93, 147, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
+
     50% {
         transform: scale(1.08);
         box-shadow: 0 14px 24px rgba(27, 93, 147, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -185,35 +196,46 @@
 }
 
 @keyframes failureWobble {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1) rotate(0deg);
         box-shadow: 0 8px 16px rgba(217, 119, 87, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
+
     10% {
         transform: scale(0.98) rotate(-5deg);
     }
+
     20% {
         transform: scale(0.98) rotate(5deg);
     }
+
     30% {
         transform: scale(0.97) rotate(-5deg);
     }
+
     40% {
         transform: scale(0.97) rotate(5deg);
     }
+
     50% {
         transform: scale(1) rotate(0deg);
         box-shadow: 0 12px 20px rgba(217, 119, 87, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
+
     60% {
         transform: scale(0.98) rotate(-4deg);
     }
+
     70% {
         transform: scale(0.98) rotate(4deg);
     }
+
     80% {
         transform: scale(0.99) rotate(-3deg);
     }
+
     90% {
         transform: scale(0.99) rotate(3deg);
     }
@@ -270,8 +292,17 @@
 }
 
 @keyframes glowPulse {
-    0%, 100% { opacity: 0.6; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
 }
 
 .comfort-title {
@@ -297,36 +328,38 @@
 
 .field-container {
     position: relative;
-    background: rgba(255, 255, 255, 0.7);
+    background: #ffffff;
     border: 1.5px solid #1b5d93;
-    border-radius: 16px;
+    border-radius: 8px;
     overflow: visible;
     transition: all 0.3s ease;
-    min-height: 56px;
+    min-height: 44px;
     display: flex;
     align-items: center;
 }
 
 .field-container:focus-within {
     border-color: #1b5d93;
-    box-shadow: 0 0 0 4px rgba(27, 93, 147, 0.12);
-    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 0 3px rgba(27, 93, 147, 0.12);
+    background: #ffffff;
 }
 
 .soft-field input {
     width: 100%;
-    height: 56px;
+    height: 44px;
     background: transparent;
-    border: none;
-    padding: 24px 16px 12px 16px;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 14px 14px 6px 14px;
     color: #1b5d93;
     font-size: 15px;
     font-weight: 400;
-    outline: none;
     position: relative;
     z-index: 2;
     font-family: inherit;
-    overflow: visible;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .soft-field input::placeholder {
@@ -334,23 +367,25 @@
 }
 
 /* ── Neutralize Chrome / Edge autofill styling ──────────────────────────
-   Chrome overrides background-color when it autofills the email field,
-   which makes the border look different from the password field.
-   We fake the background using an inset box-shadow (the only property
-   that survives the autofill override) and force the correct text color. */
+   Chrome overrides background-color when it autofills the email field.
+   We fake the background using an inset box-shadow and remove the inner
+   focus ring that was creating the double-border rectangle effect. */
 .soft-field input:-webkit-autofill,
 .soft-field input:-webkit-autofill:hover,
 .soft-field input:-webkit-autofill:focus,
 .soft-field input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 56px rgba(255, 255, 255, 0.95) inset !important;
+    -webkit-box-shadow: 0 0 0 56px #ffffff inset !important;
+    box-shadow: 0 0 0 56px #ffffff inset !important;
     -webkit-text-fill-color: #1b5d93 !important;
+    border: none !important;
+    outline: none !important;
     caret-color: #1b5d93;
-    /* Delay background reset so the transition feels smooth */
     transition: background-color 9999s ease-in-out 0s;
 }
 
+
 /* Also float the label when the field is autofilled */
-.soft-field input:-webkit-autofill + label {
+.soft-field input:-webkit-autofill+label {
     top: 0;
     left: 12px;
     font-size: 13px;
@@ -366,43 +401,44 @@
 /* Floating Label - Default (Empty State) */
 .soft-field label {
     position: absolute;
-    left: 16px;
+    left: 14px;
     top: 50%;
-    color: rgba(27, 93, 147, 0.4);
-    font-size: 15px;
+    color: rgba(27, 93, 147, 0.5);
+    font-size: 14px;
     font-weight: 400;
     pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 3;
     transform: translateY(-50%);
 }
 
-/* Floating Label - Floating State (Focused or Has Value) */
+/* Floating Label - Floating State (label sits ON the top border line) */
 .soft-field label.floating {
     top: 0;
-    left: 12px;
-    font-size: 13px;
+    left: 10px;
+    font-size: 12px;
     font-weight: 600;
     color: #1b5d93;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.96);
-    padding: 0 4px;
-    letter-spacing: 0.3px;
+    background: #ffffff;
+    padding: 0 5px;
+    letter-spacing: 0.2px;
     white-space: nowrap;
 }
 
-/* Fallback CSS selectors for browsers without JS support */
+/* CSS-only fallback (also triggers on autofill) */
 .soft-field input:focus + label,
-.soft-field input:not(:placeholder-shown) + label {
+.soft-field input:not(:placeholder-shown) + label,
+.soft-field input:-webkit-autofill + label {
     top: 0;
-    left: 12px;
-    font-size: 13px;
+    left: 10px;
+    font-size: 12px;
     font-weight: 600;
     color: #1b5d93;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.96);
-    padding: 0 4px;
-    letter-spacing: 0.3px;
+    background: #ffffff;
+    padding: 0 5px;
+    letter-spacing: 0.2px;
     white-space: nowrap;
 }
 
@@ -455,7 +491,7 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     border: none;
     cursor: pointer;
     z-index: 4;
-    padding: 8px;
+    padding: 4px;
     border-radius: 12px;
     transition: all 0.2s ease;
 }
@@ -538,13 +574,13 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     z-index: 1;
 }
 
-.gentle-checkbox input[type="checkbox"]:checked + .checkbox-soft .check-circle {
+.gentle-checkbox input[type="checkbox"]:checked+.checkbox-soft .check-circle {
     background: linear-gradient(135deg, #1b5d93, #0d3a5c);
     border-color: #1b5d93;
     box-shadow: 0 2px 4px rgba(27, 93, 147, 0.2);
 }
 
-.gentle-checkbox input[type="checkbox"]:checked + .checkbox-soft .check-mark {
+.gentle-checkbox input[type="checkbox"]:checked+.checkbox-soft .check-mark {
     color: #fff;
 }
 
@@ -652,8 +688,13 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 
 @keyframes gentleSpin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .comfort-button.loading .button-text {
@@ -882,9 +923,20 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 
 @keyframes bloomExpand {
-    0% { opacity: 0; transform: scale(0); }
-    50% { opacity: 1; transform: scale(1.1); }
-    100% { opacity: 0.6; transform: scale(1); }
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
 }
 
 .success-icon {
@@ -896,8 +948,15 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 
 @keyframes iconBloom {
-    0% { opacity: 0; transform: scale(0); }
-    100% { opacity: 1; transform: scale(1); }
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .success-title {
@@ -919,26 +978,26 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     :host {
         padding: 16px;
     }
-    
+
     .soft-card {
         padding: 36px 28px;
         border-radius: 24px;
     }
-    
+
     .comfort-title {
         font-size: 1.75rem;
     }
-    
+
     .gentle-logo {
         width: 64px;
         height: 64px;
     }
-    
+
     .logo-circle {
         width: 52px;
         height: 52px;
     }
-    
+
     .comfort-options {
         flex-direction: row;
         align-items: center;
@@ -950,15 +1009,15 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     .comfort-link {
         font-size: 13px;
     }
-    
+
     .comfort-social {
         flex-direction: column;
     }
-    
+
     .floating-shapes {
         opacity: 0.5;
     }
-    
+
     .soft-blob {
         filter: blur(60px);
     }

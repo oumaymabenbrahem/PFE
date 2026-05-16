@@ -6,7 +6,7 @@ import joblib
 import pandas as pd
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -187,6 +187,8 @@ class ExecuteScenarioRequest(BaseModel):
     projectId: str
     url: str
     scenarios: List[ScenarioItem]
+    focusObjective: Optional[str] = ""
+    focusOptionnel: Optional[str] = ""
 
 # System prompt is separated
 system_prompt = """Tu es un expert QA silencieux et automatique. Ton unique rôle est de convertir la User Story fournie en scénarios de test Gherkin.
@@ -196,14 +198,28 @@ ATTENTION :
 2. Concentre-toi STRICTEMENT et EXCLUSIVEMENT sur la fonctionnalité décrite dans la User story.
 3. Génère au minimum 8 scénarios distincts si la User Story le permet: succès, validation obligatoire, données invalides, limites, erreurs métier, permissions, navigation/retour, non-régression.
 4. Chaque scénario doit tester une intention différente. Interdiction de répéter le même test avec seulement un titre différent.
-5. INCLURE DES LOCATEURS : Lorsque c'est possible, ajoute des identifiants `(id: ...)` ou `(name: ...)` dans les actions `When` pour aider l'automate (ex: "When l'utilisateur clique sur le bouton connexion (id: login)").
+5. LOCATEURS DE CHAMPS ET DE NAVIGATION (RÈGLES CRITIQUES) :
+   a) Pour les étapes de SAISIE (`saisit`, `tape`, `remplit`), utilise UNIQUEMENT des locateurs pointant vers des CHAMPS de formulaire :
+      * Préférer : `(id: monId)` ou `(name: monNom)` ou `(id: password)` ou `(id: username)`
+      * Accepté : `(css: input[type='text'])` ou `(css: input[type='password'])`
+      * INTERDIT : Ne JAMAIS utiliser `(xpath: //button[...])` ou `(xpath: //a[...])` dans une étape de saisie.
+   b) Pour les étapes de CLIC sur des MENUS / LIENS DE NAVIGATION de la barre latérale :
+      * Utilise UNIQUEMENT le TEXTE EXACT visible de l'élément entre guillemets, SANS locateur xpath/css.
+      * Format correct : `When l'utilisateur clique sur le menu "Nouveaux projets" dans la barre latérale gauche`
+      * Format correct : `And l'utilisateur clique sur "Réception de la requête de financement"`
+      * INTERDIT : Ne JAMAIS réutiliser le xpath d'une étape précédente (ex: le xpath du bouton CONNEXION) pour un élément différent.
+      * INTERDIT : `(xpath: //button[normalize-space(.)='CONNEXION'])` pour un lien de menu — CONNEXION est le bouton de login, pas un menu!
+   c) Pour les étapes de CLIC sur des BOUTONS DE FORMULAIRE (submit, save, etc.) :
+      * Format : `And l'utilisateur clique sur le bouton "Ajout requête"` — sans locateur xpath si le texte suffit.
 6. VALIDATION CONCRÈTE : Dans les étapes `Then`, utilise EXCLUSIVEMENT ces formats reconnus par l'automate :
-   - Visibilité: `Then l'élément (id: identifiant) devrait être visible`
-   - Invisibilité: `Then l'élément (id: identifiant) ne devrait pas être visible`
-   - URL: `Then l'URL de la page devrait être "https://..."`
-   - URL contient: `Then l'URL devrait contenir "mot-clé"` (ATTENTION: pour les recherches, utilise le terme recherché seul, pas le format param=terme. Ex: "Then l'URL devrait contenir \"Kindle\"" et NON "Then l'URL devrait contenir \"s=Kindle\"")
-   - Texte visible: `Then le texte "mot" devrait être visible`
-   NE JAMAIS utiliser des phrases abstraites comme "la section est affichée" ou "le résultat est correct".
+      - Visibilité: `Then l'élément (id: identifiant) devrait être visible`
+      - Invisibilité: `Then l'élément (id: identifiant) ne devrait pas être visible`
+      - URL (RÈGLE IMPORTANTE) :
+        * UTILISÉ TOUJOURS `Then l'URL devrait contenir "mot-clé"` pour les redirections après action (connexion, soumission formulaire). Ex: `Then l'URL devrait contenir "dash"`.
+        * Ne JAMAIS utiliser `Then l'URL de la page devrait être "https://..."` car les URLs exactes peuvent varier (ex: redirection vers /app/d/dash au lieu de /public/dashboard).
+        * Pour les recherches: `Then l'URL devrait contenir "terme"` (le terme seul, sans `param=`)
+      - Texte visible: `Then le texte "mot" devrait être visible`
+      NE JAMAIS utiliser des phrases abstraites comme "la section est affichée" ou "le résultat est correct".
 7. ÉTAPE GIVEN : Utilise TOUJOURS ce format exact pour la précondition :
    `Given l'utilisateur se trouve sur la page "https://url-du-site.com"`
 8. Tu dois IMPÉRATIVEMENT utiliser ce format de TEXTE EXACT pour chaque scénario (c'est crucial pour l'analyse syntaxique automatique) :
@@ -458,6 +474,10 @@ async def analyze_app(request: AnalyzeAppRequest):
                 "",
                 MAX_DYNAMIC_SCENARIOS
             )
+
+        focus_workflow = _build_focus_workflow_scenario(request.url, focus_objective)
+        if focus_workflow:
+            scenarios = [focus_workflow]
 
         if scenarios:
             print(f"✓ {len(scenarios)} scénarios générés avec succès")
@@ -734,6 +754,10 @@ def _parse_scenarios_from_generated_text(generated_text: str, selected_default: 
         expected = exp_match.group(1).strip() if exp_match else "Test fonctionnel"
         gherkin = gherkin_match.group(1).strip() if gherkin_match else block.strip()
         gherkin = _clean_gherkin_text(gherkin)
+        # Strip any button/link XPath locators that the AI may have placed in typing steps
+        gherkin = _sanitize_input_step_locators(gherkin)
+        # Strip stale/mismatched XPath locators that the AI may have placed in click/nav steps
+        gherkin = _sanitize_click_step_locators(gherkin)
 
         if titre and gherkin:
             scenario_text = f"{titre} {description} {expected} {gherkin}"
@@ -912,6 +936,121 @@ def _clean_gherkin_text(gherkin: str) -> str:
     gherkin = re.sub(r'\[/USER\].*', '', gherkin, flags=re.DOTALL)
     gherkin = re.sub(r'\[/ASSISTANT\].*', '', gherkin, flags=re.DOTALL)
     return gherkin.strip()
+
+
+# Regex that detects an XPath or CSS locator hinting at a non-input element
+# (button, link, label, span…) attached to a *typing* Gherkin step.
+_BUTTON_LOCATOR_IN_INPUT_STEP = re.compile(
+    r"((?:When|And|Quand|Et)\b.*?(?:saisit|tape|remplit|enters?|types?|fills?).*?)"
+    r"(\(\s*xpath\s*:\s*//(?:button|a|label|span|div|li|ul)\b.*\))",
+    re.IGNORECASE
+)
+
+
+def _sanitize_input_step_locators(gherkin: str) -> str:
+    """Remove button/link XPath locators from typing steps.
+
+    When the AI generates something like:
+        When l'utilisateur saisit "admin" dans le champ
+            (xpath: //button[normalize-space(.)='CONNEXION'])
+    …the XPath points to a button, not an input field.  Strip the bad
+    locator hint so the executor falls back to semantic intent resolution
+    (username / password / email) instead of failing silently.
+    """
+    repaired_lines = []
+    for line in gherkin.splitlines():
+        stripped = line.strip()
+        # Only touch lines that are typing actions
+        if re.match(r'^(When|And|Quand|Et)\b', stripped, flags=re.IGNORECASE) and \
+                re.search(r'\b(saisit|tape|remplit|enters?|types?|fills?)\b', stripped, flags=re.IGNORECASE):
+            # Remove any parenthesised locator that points to a button/link/non-input tag
+            cleaned = re.sub(
+                r'\s*\(\s*xpath\s*:\s*//(?:button|a|label|span|div|li|ul)\b.*\)\s*$',
+                '',
+                stripped,
+                flags=re.IGNORECASE
+            )
+            if cleaned != stripped:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "[SANITIZE] Removed button XPath from typing step: %s", stripped
+                )
+            indent = line[:len(line) - len(line.lstrip())]
+            repaired_lines.append(indent + cleaned)
+        else:
+            repaired_lines.append(line)
+    return '\n'.join(repaired_lines)
+
+
+def _sanitize_click_step_locators(gherkin: str) -> str:
+    """Remove stale/mismatched XPath locators from click/navigation steps.
+
+    The AI sometimes copies the XPath of a previous step (e.g. the login
+    CONNEXION button) and attaches it to a completely different click target
+    (e.g. "Nouveaux projets" in the sidebar).  When the embedded XPath text
+    literal does NOT match the visible label we are clicking, strip the
+    locator so the executor resolves the element by its visible text instead.
+
+    Example of bad step the AI generates:
+        When l'utilisateur clique sur le menu "Nouveaux projets" dans la barre
+             latérale gauche (xpath: //button[normalize-space(.)='CONNEXION'])
+    After sanitisation:
+        When l'utilisateur clique sur le menu "Nouveaux projets" dans la barre
+             latérale gauche
+    """
+    repaired_lines = []
+    for line in gherkin.splitlines():
+        stripped = line.strip()
+        indent = line[:len(line) - len(line.lstrip())]
+
+        # Only touch click/navigation action lines
+        if not (re.match(r'^(When|And|Quand|Et)\b', stripped, flags=re.IGNORECASE) and
+                re.search(r'\b(clique|clicks?|appuie)\b', stripped, flags=re.IGNORECASE)):
+            repaired_lines.append(line)
+            continue
+
+        # Find an XPath locator with an embedded text literal
+        xpath_match = re.search(
+            r'\(\s*xpath\s*:\s*(//.*)\)\s*$', stripped, flags=re.IGNORECASE
+        )
+        if not xpath_match:
+            repaired_lines.append(line)
+            continue
+
+        xpath_expr = xpath_match.group(1).strip()
+
+        # Extract the text literal baked into the XPath
+        embedded_match = re.search(
+            r"normalize-space\(\.\)\s*=\s*['\"]([^'\"]+)['\"]", xpath_expr, re.IGNORECASE
+        )
+        if not embedded_match:
+            repaired_lines.append(line)
+            continue
+
+        embedded_text = embedded_match.group(1).strip().lower()
+
+        # Extract the quoted target label(s) from the step text
+        quoted_labels = re.findall(
+            r'["\u00ab\u00bb\u201c\u201d]([^"\u00ab\u00bb\u201c\u201d]+)["\u00ab\u00bb\u201c\u201d]',
+            stripped
+        )
+        target_text = ' '.join(quoted_labels).lower()
+
+        # If the XPath text does NOT match the target label, discard the locator
+        if target_text and embedded_text not in target_text and target_text not in embedded_text:
+            cleaned = re.sub(
+                r'\s*\(\s*xpath\s*:.*\)\s*$', '', stripped, flags=re.IGNORECASE
+            ).strip()
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "[SANITIZE-CLICK] Removed stale XPath '%s' (embedded '%s' ≠ target '%s') from: %s",
+                xpath_expr, embedded_text, target_text, stripped
+            )
+            repaired_lines.append(indent + cleaned)
+        else:
+            repaired_lines.append(line)
+
+    return '\n'.join(repaired_lines)
 
 
 def _infer_scenario_type(text: str) -> str:
@@ -1551,8 +1690,7 @@ INSTRUCTIONS CRITIQUES:
 6. VALIDATION (Then): Utilise EXCLUSIVEMENT ces formats reconnus par l'automate :
    - `Then l'élément (id: identifiant) devrait être visible`
    - `Then l'élément (id: identifiant) ne devrait pas être visible`
-   - `Then l'URL de la page devrait être "https://..."`
-   - `Then l'URL devrait contenir "mot-clé"` (utilise le terme recherché seul, ex: "Kindle" pas "s=Kindle")
+   - `Then l'URL devrait contenir "mot-clé"` (ex: "dash" pour un dashboard après login, ignore le reste de l'url)
    - `Then l'URL de la page ne devrait pas contenir "mot-clé"` uniquement si la donnée saisie ne contient PAS ce mot-clé.
    - `Then le texte "mot" devrait être visible`
     NE JAMAIS utiliser des phrases abstraites.
@@ -1633,6 +1771,101 @@ def _ensure_minimum_scenarios(
 
     merged = [_repair_scenario_locators_with_validated_elements(scenario, elements_dicts) for scenario in merged]
     return _limit_diverse_scenarios(_deduplicate_scenarios(merged), max_count)
+
+
+def _extract_focus_credentials(focus_objective: str) -> Tuple[str, str]:
+    text = str(focus_objective or "")
+    username = ""
+    password = ""
+
+    username_patterns = [
+        r"(?:avec\s+)?([^\s,.;]+)\s+com+me\s+nom\s+d['’]utilisateur",
+        r"nom\s+d['’]utilisateur\s*(?:est|=|:)\s*['\"]?([^'\"\s,.;]+)",
+    ]
+    password_patterns = [
+        r"([^\s,.;]+)\s+com+me\s+mot\s+de\s+passe",
+        r"mot\s+de\s+passe\s*(?:est|=|:)\s*['\"]?([^'\"\s,.;]+)",
+    ]
+
+    for pattern in username_patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            username = match.group(1).strip()
+            break
+
+    for pattern in password_patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            password = match.group(1).strip()
+            break
+
+    return username, password
+
+
+def _extract_focus_click_labels(focus_objective: str) -> List[str]:
+    labels = re.findall(
+        r'["\u00ab\u00bb\u201c\u201d]([^"\u00ab\u00bb\u201c\u201d]{2,100})["\u00ab\u00bb\u201c\u201d]',
+        str(focus_objective or "")
+    )
+    cleaned = []
+    for label in labels:
+        label = re.sub(r"\s+", " ", label).strip()
+        if label and not label.lower().startswith(("http://", "https://")):
+            cleaned.append(label)
+    return cleaned
+
+
+def _build_focus_workflow_scenario(url: str, focus_objective: str) -> Optional[Dict]:
+    username, password = _extract_focus_credentials(focus_objective)
+    click_labels = _extract_focus_click_labels(focus_objective)
+    focus_norm = _normalize_for_match(focus_objective)
+
+    if not username or not password or not click_labels:
+        return None
+    if "connexion" not in focus_norm and "connect" not in focus_norm:
+        return None
+
+    steps = [
+        f"    Given l'utilisateur se trouve sur la page \"{_safe_gherkin_value(url)}\"",
+        f"    When l'utilisateur saisit \"{_safe_gherkin_value(username)}\" dans le champ \"Nom d'utilisateur\"",
+        f"    And l'utilisateur saisit \"{_safe_gherkin_value(password)}\" dans le champ \"Mot de passe\"",
+        "    And l'utilisateur clique sur le bouton \"CONNEXION\"",
+        "    Then l'URL devrait contenir \"dash\"",
+    ]
+
+    for index, label in enumerate(click_labels):
+        safe_label = _safe_gherkin_value(label)
+        label_norm = _normalize_for_match(label)
+        if index == 0:
+            steps.append(f"    And l'utilisateur clique sur le menu \"{safe_label}\" dans la barre latérale gauche")
+        elif "ajout" in label_norm:
+            steps.append(f"    And l'utilisateur clique sur le bouton \"{safe_label}\"")
+        else:
+            steps.append(f"    And l'utilisateur clique sur \"{safe_label}\"")
+
+    scenario = _scenario_dict(
+        "Parcours ciblé - Connexion puis ajout requête",
+        "Fonctionnel",
+        "Exécuter exactement le parcours demandé dans l'objectif utilisateur.",
+        "L'utilisateur arrive au formulaire d'ajout de requête après la connexion.",
+        "Feature: Parcours ciblé\n"
+        "  Scenario: Connexion puis accès à l'ajout de requête\n"
+        + "\n".join(steps)
+    )
+    scenario["source"] = "FOCUS_OBJECTIVE"
+    return scenario
+
+
+def _scenario_has_stale_menu_login_xpath(gherkin: str) -> bool:
+    for line in str(gherkin or "").splitlines():
+        normalized = _normalize_for_match(line)
+        if "clique" not in normalized and "click" not in normalized:
+            continue
+        if "menu" not in normalized:
+            continue
+        if "xpath" in normalized and "button" in normalized and "connexion" in normalized:
+            return True
+    return False
 
 
 def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict], needed: int, focus_objective: str = "") -> List[Dict]:
@@ -1976,6 +2209,8 @@ async def execute_scenarios(request: ExecuteScenarioRequest):
     print()
 
     log_step(f"URL from request: {request.url}")
+    focus_objective = _normalize_focus_objective(request.focusObjective or request.focusOptionnel)
+    focus_workflow = _build_focus_workflow_scenario(request.url, focus_objective)
 
     executor = GherkinExecutor(headless=False)  # Mode visible!
     scenarios_results = []
@@ -1992,9 +2227,15 @@ async def execute_scenarios(request: ExecuteScenarioRequest):
             log_step(f"\n[{idx}/{len(selected_scenarios)}] Executing: {scenario.nomSenario}")
 
             try:
+                scenario_gherkin = _sanitize_click_step_locators(
+                    _sanitize_input_step_locators(scenario.senario)
+                )
+                if focus_workflow and _scenario_has_stale_menu_login_xpath(scenario_gherkin):
+                    scenario_gherkin = focus_workflow["senario"]
+
                 result = executor.execute_scenario(
                     scenario_name=scenario.nomSenario,
-                    gherkin_text=scenario.senario,
+                    gherkin_text=scenario_gherkin,
                     base_url=request.url
                 )
 

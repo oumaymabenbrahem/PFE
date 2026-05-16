@@ -25,7 +25,7 @@ import java.util.UUID;
 public class ChatbotService {
 
     @Autowired
-    private HuggingFaceClient huggingFaceClient;
+    private GrokClient grokClient;
 
     @Autowired
     private UserContextService userContextService;
@@ -73,22 +73,19 @@ public class ChatbotService {
             }
 
             // Build system prompt with context
-            String systemPrompt = userContextService.buildSystemPrompt(contextData);
+            String systemPrompt = userContextService.buildContextualPrompt(userMessage, contextData);
 
-            // Fetch recent conversation history for context
-            List<HuggingFaceClient.ChatMessage> conversationHistory = getRecentConversationHistory(userId);
-
-            // Call Hugging Face API with full context
+            // Call Grok API
             String botResponse;
             try {
-                if (!huggingFaceClient.isAvailable()) {
-                    log.info("Hugging Face API not available, using fallback response");
+                if (!grokClient.isConfigured()) {
+                    log.info("Grok API not configured, using fallback response");
                     botResponse = generateFallbackResponse(userMessage, contextData);
                 } else {
                     try {
-                        botResponse = huggingFaceClient.generateResponse(systemPrompt, conversationHistory, userMessage);
-                    } catch (Exception hfError) {
-                        log.warn("Hugging Face API call failed, using fallback response", hfError);
+                        botResponse = grokClient.generateResponse(systemPrompt, userMessage);
+                    } catch (Exception grokError) {
+                        log.warn("Grok API call failed, using fallback response", grokError);
                         botResponse = generateFallbackResponse(userMessage, contextData);
                     }
                 }
@@ -121,7 +118,7 @@ public class ChatbotService {
     /**
      * Get recent conversation history for context
      */
-    private List<HuggingFaceClient.ChatMessage> getRecentConversationHistory(UUID userId) {
+    private List<GrokClient.ChatMessage> getRecentConversationHistory(UUID userId) {
         try {
             List<ChatbotMessage> recentMessages = chatbotMessageRepository
                 .findTop50ByUserIdOrderByCreatedAtDesc(userId)
@@ -130,10 +127,10 @@ public class ChatbotService {
                 .toList();
 
             // Reverse to get chronological order (oldest first)
-            List<HuggingFaceClient.ChatMessage> history = new ArrayList<>();
+            List<GrokClient.ChatMessage> history = new ArrayList<>();
             for (int i = recentMessages.size() - 1; i >= 0; i--) {
                 ChatbotMessage msg = recentMessages.get(i);
-                history.add(new HuggingFaceClient.ChatMessage(msg.getUserMessage(), msg.getBotResponse()));
+                history.add(new GrokClient.ChatMessage(msg.getUserMessage(), msg.getBotResponse()));
             }
 
             return history;

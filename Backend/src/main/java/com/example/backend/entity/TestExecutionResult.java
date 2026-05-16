@@ -93,6 +93,7 @@ public class TestExecutionResult {
     @CollectionTable(name = "execution_screenshots", joinColumns = @JoinColumn(name = "execution_result_id"))
     @JdbcTypeCode(SqlTypes.VARBINARY)
     @Column(name = "screenshot_blob", columnDefinition = "BYTEA")
+    @Builder.Default
     private List<byte[]> screenshotBlobs = new ArrayList<>();
 
     /**

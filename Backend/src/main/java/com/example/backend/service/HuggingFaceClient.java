@@ -10,15 +10,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * Service for calling Hugging Face Inference API
- * Uses Zephyr chat template format with conversation history
+ * Service for calling Hugging Face API with OpenAI-compatible endpoint (Mistral model)
+ * For free tier: https://huggingface.co/settings/tokens
  */
 @Service
 @Slf4j
@@ -31,10 +33,10 @@ public class HuggingFaceClient {
     @Value("${huggingface.api-key:}")
     private String apiKey;
 
-    @Value("${huggingface.model:HuggingFaceH4/zephyr-7b-beta}")
+    @Value("${huggingface.model:mistral-7b-instruct}")
     private String model;
 
-    @Value("${huggingface.endpoint:https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta}")
+    @Value("${huggingface.endpoint:https://api-inference.huggingface.co/v1/chat/completions}")
     private String endpoint;
 
     public HuggingFaceClient(ObjectMapper objectMapper) {
@@ -42,11 +44,17 @@ public class HuggingFaceClient {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Startup: Initialize and test API availability
+     */
     @PostConstruct
     public void startup() {
         initialize();
     }
 
+    /**
+     * Initialize: Test API availability at startup
+     */
     public void initialize() {
         if (!isConfigured()) {
             log.warn("Hugging Face API not configured");
@@ -61,40 +69,39 @@ public class HuggingFaceClient {
             log.info("✓ Hugging Face API is available");
         } catch (Exception e) {
             apiAvailable = false;
-            log.warn("✗ Hugging Face API is not available - will use fallback responses: {}", e.getMessage());
+            log.warn("✗ Hugging Face API is not available - will use fallback responses", e.getMessage());
         }
     }
 
     /**
-     * Generate response with conversation history using Zephyr chat template
-     * Zephyr format: <|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n{assistant}<|end|>
+     * Call Hugging Face API with standard Inference API
+     * Zephyr-7B for better instruction following
      */
-    public String generateResponse(String systemPrompt, List<ChatMessage> conversationHistory, String userMessage) {
+    public String generateResponse(String prompt) {
+        // If API not available, throw immediately (don't retry)
         if (!apiAvailable) {
             throw new RuntimeException("Hugging Face API is not available");
         }
 
         try {
-            log.info("Calling Hugging Face API with model: {} (history: {} messages)", model, conversationHistory.size());
+            log.info("Calling Hugging Face API with model: {}", model);
 
-            // Build prompt using Zephyr chat template
-            String formattedPrompt = buildZephyrPrompt(systemPrompt, conversationHistory, userMessage);
-
+            // Build request in standard Hugging Face format
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + apiKey);
             headers.set("Content-Type", "application/json");
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("inputs", formattedPrompt);
+            requestBody.put("inputs", prompt);
             requestBody.put("parameters", Map.of(
-                "max_new_tokens", 512,
+                "max_new_tokens", 256,
                 "temperature", 0.7,
-                "top_p", 0.9,
-                "return_full_text", false
+                "top_p", 0.9
             ));
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
+            // Call API
             ResponseEntity<String> response = restTemplate.exchange(
                 endpoint,
                 HttpMethod.POST,
@@ -102,9 +109,10 @@ public class HuggingFaceClient {
                 String.class
             );
 
-            log.debug("Hugging Face API response status: {}", response.getStatusCode());
+            log.info("Hugging Face API response status: {}", response.getStatusCode());
 
-            return parseResponse(response.getBody());
+            // Parse response
+            return parseOpenAIResponse(response.getBody());
 
         } catch (Exception e) {
             log.error("Error calling Hugging Face API", e);
@@ -113,63 +121,26 @@ public class HuggingFaceClient {
     }
 
     /**
-     * Legacy method for backward compatibility
+     * Parse Hugging Face API response format
+     * Response format: [{"generated_text": "..."}]
      */
-    public String generateResponse(String prompt) {
-        return generateResponse(null, List.of(), prompt);
-    }
-
-    /**
-     * Build prompt using Zephyr-7B chat template format
-     */
-    private String buildZephyrPrompt(String systemPrompt, List<ChatMessage> conversationHistory, String userMessage) {
-        StringBuilder prompt = new StringBuilder();
-
-        // System message
-        if (systemPrompt != null && !systemPrompt.isBlank()) {
-            prompt.append("<|system|>\n").append(systemPrompt).append("</s>\n");
-        }
-
-        // Conversation history
-        for (ChatMessage msg : conversationHistory) {
-            prompt.append("<|user|>\n").append(msg.userMessage()).append("</s>\n");
-            prompt.append("<|assistant|>\n").append(msg.botResponse()).append("</s>\n");
-        }
-
-        // Current user message
-        prompt.append("<|user|>\n").append(userMessage).append("</s>\n");
-        prompt.append("<|assistant|>\n");
-
-        return prompt.toString();
-    }
-
-    /**
-     * Parse API response - handles Hugging Face Inference API format
-     */
-    private String parseResponse(String responseBody) throws Exception {
+    private String parseOpenAIResponse(String responseBody) throws Exception {
         try {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
 
-            // Handle array response (Hugging Face standard Inference API format)
+            // Handle array response (Hugging Face standard format)
             if (jsonNode.isArray() && jsonNode.size() > 0) {
-                JsonNode firstItem = jsonNode.get(0);
-                if (firstItem.has("generated_text")) {
-                    String generatedText = firstItem.get("generated_text").asText().trim();
-                    // Clean up any remaining template tokens
-                    generatedText = generatedText.replace("</s>", "").replace("<|end|>", "").trim();
-                    return generatedText;
-                }
+                String generatedText = jsonNode.get(0).get("generated_text").asText();
+                return generatedText.trim();
             }
 
-            // Handle OpenAI-compatible format (for dedicated endpoints)
+            // Handle OpenAI-compatible format
             if (jsonNode.has("choices") && jsonNode.get("choices").isArray() && jsonNode.get("choices").size() > 0) {
-                JsonNode firstChoice = jsonNode.get("choices").get(0);
-                if (firstChoice.has("message") && firstChoice.get("message").has("content")) {
-                    return firstChoice.get("message").get("content").asText().trim();
-                }
+                String generatedText = jsonNode.get("choices").get(0).get("message").get("content").asText();
+                return generatedText.trim();
             }
 
-            log.warn("Unexpected API response format: {}", responseBody.substring(0, Math.min(200, responseBody.length())));
+            log.warn("Unexpected API response format: {}", responseBody);
             return "Je n'ai pas pu générer une réponse. Veuillez réessayer.";
 
         } catch (Exception e) {
@@ -178,13 +149,16 @@ public class HuggingFaceClient {
         }
     }
 
+    /**
+     * Test API connection with a simple request
+     */
     private void testAPIConnection() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + apiKey);
         headers.set("Content-Type", "application/json");
 
         Map<String, Object> testRequest = new HashMap<>();
-        testRequest.put("inputs", "<|user|>\nHello</s>\n<|assistant|>\n");
+        testRequest.put("inputs", "Hello");
         testRequest.put("parameters", Map.of("max_new_tokens", 20));
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(testRequest, headers);
@@ -203,16 +177,28 @@ public class HuggingFaceClient {
         }
     }
 
+    /**
+     * Check if API is actually available (not just configured)
+     */
     public boolean isAvailable() {
         return apiAvailable;
     }
 
+    /**
+     * Validate API key configuration
+     */
     public boolean isConfigured() {
         return apiKey != null && !apiKey.isEmpty() && !apiKey.equals("YOUR_HUGGING_FACE_API_KEY");
     }
 
     /**
-     * Simple record for conversation history entries
+     * Inner class representing a chat message for conversation history
      */
-    public record ChatMessage(String userMessage, String botResponse) {}
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class ChatMessage {
+        private String userMessage;
+        private String botResponse;
+    }
 }

@@ -718,6 +718,7 @@ public class ProjectService {
                 log.info("   URL empty?: {}", urlToTest == null || urlToTest.isEmpty());
 
                 executeRequest.put("url", urlToTest);
+                executeRequest.put("focusObjective", project.getFocusOptionnel());
 
                 List<Map<String, Object>> scenarios = new ArrayList<>();
                 for (Map<String, Object> scenario : selectedScenarios) {
