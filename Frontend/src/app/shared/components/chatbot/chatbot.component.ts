@@ -19,7 +19,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
   isChatOpen: boolean = false;
   messages: DisplayMessage[] = [
     {
-      text: 'Bonjour ! 👋 Je suis votre assistant IA. Je peux répondre à toutes vos questions — tests d\'automatisation, Gherkin, Selenium, programmation, ou tout autre sujet. Comment puis-je vous aider ?',
+      text: "Bonjour ! 👋 Comment puis-je vous aider aujourd'hui ?",
       sender: 'bot',
       timestamp: this.getCurrentTime()
     }
