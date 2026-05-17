@@ -19,6 +19,8 @@ import { AProposComponent } from './dashboard/layout/a-propos/a-propos.component
 import { ForgotPasswordComponent } from './dashboard/pages/forgot-password/forgot-password.component';
 import { ForgotPasswordVerificationComponent } from './dashboard/pages/forgot-password-verification/forgot-password-verification.component';
 import { ResetPasswordComponent } from './dashboard/pages/reset-password/reset-password.component';
+import { DashboardAdminComponent } from './dashboard-Admin/dashboard-admin.component';
+import { ProfilePageComponent } from './dashboard-Admin/pages/profile-page.component';
 
 @NgModule({
   declarations: [
@@ -43,7 +45,9 @@ import { ResetPasswordComponent } from './dashboard/pages/reset-password/reset-p
     FormsModule,
     ReactiveFormsModule,
     AppRoutingModule,
-    CoreModule
+    CoreModule,
+    DashboardAdminComponent,
+    ProfilePageComponent
   ],
   providers: [],
   bootstrap: [AppComponent]

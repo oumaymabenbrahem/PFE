@@ -1,0 +1,158 @@
+<main class="admin-dashboard">
+  <aside class="admin-sidebar">
+    <a class="brand" routerLink="/dashboard-admin" aria-label="ST2I dashboard">
+      <img src="assets/images/st2i-logo.png" alt="ST2I" class="brand-img">
+    </a>
+
+    <nav class="side-nav" aria-label="Admin navigation">
+      <span class="nav-section">Admin</span>
+      <a class="nav-item" routerLink="/dashboard-admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><i class="bi bi-grid"></i> Tableau de bord</a>
+      <a class="nav-item" routerLink="/dashboard-admin/profile" routerLinkActive="active"><i class="bi bi-people"></i> Utilisateurs</a>
+    </nav>
+  </aside>
+
+  <section class="admin-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button type="button" class="menu-button" aria-label="Menu">
+          <i class="bi bi-list"></i>
+        </button>
+
+        <label class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search or type command..." aria-label="Search" />
+          <span class="shortcut">⌘ K</span>
+        </label>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" (click)="toggleDarkMode()" [attr.aria-label]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <i [class]="'bi ' + (isDarkMode ? 'bi-sun' : 'bi-moon')"></i>
+        </button>
+        <button type="button" aria-label="Notifications"><i class="bi bi-bell"></i></button>
+        <div class="profile-chip">
+          <span class="avatar">A</span>
+          <span>Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <router-outlet></router-outlet>
+
+    <ng-container *ngIf="isDefaultDashboard">
+      <section class="dashboard-layout" aria-label="Tableau de bord admin">
+        <div class="dashboard-main">
+          <section class="metrics-grid" aria-label="Indicateurs principaux">
+            <article class="metric-card" *ngFor="let metric of metrics">
+              <div class="metric-icon"><i [class]="'bi ' + metric.icon"></i></div>
+              <span>{{ metric.label }}</span>
+              <div class="metric-bottom">
+                <strong>{{ metric.value }}</strong>
+                <em [class.down]="metric.trend === 'down'">
+                  <i [class]="'bi ' + (metric.trend === 'down' ? 'bi-arrow-down' : 'bi-arrow-up')"></i>
+                  {{ metric.change }}
+                </em>
+              </div>
+            </article>
+          </section>
+
+          <article class="panel sales-panel">
+            <div class="panel-title">
+              <h2>Monthly Sales</h2>
+              <button type="button" aria-label="Options monthly sales"><i class="bi bi-three-dots-vertical"></i></button>
+            </div>
+
+            <div class="sales-chart" aria-label="Monthly sales chart">
+              <div class="chart-axis">
+                <span>400</span>
+                <span>300</span>
+                <span>200</span>
+                <span>100</span>
+                <span>0</span>
+              </div>
+              <div class="chart-body">
+                <span class="grid-line"></span>
+                <span class="grid-line"></span>
+                <span class="grid-line"></span>
+                <span class="grid-line"></span>
+                <div class="bars-row">
+                  <div class="bar-item" *ngFor="let sale of monthlySales">
+                    <span class="bar-value" [style.height.%]="sale.value"></span>
+                    <span class="bar-label">{{ sale.month }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <aside class="target-card">
+          <div class="panel-title">
+            <div>
+              <h2>Monthly Target</h2>
+              <p>Target you've set for each month</p>
+            </div>
+            <button type="button" aria-label="Options monthly target"><i class="bi bi-three-dots-vertical"></i></button>
+          </div>
+
+          <div class="target-gauge" aria-label="Monthly target 75.55 percent">
+            <svg viewBox="0 0 220 122" aria-hidden="true">
+              <path d="M20 100 A90 90 0 0 1 200 100" pathLength="100" class="gauge-track"></path>
+              <path d="M20 100 A90 90 0 0 1 200 100" pathLength="100" class="gauge-progress"></path>
+            </svg>
+            <div class="gauge-value">
+              <strong>75.55%</strong>
+              <span>+10%</span>
+            </div>
+          </div>
+
+          <p class="target-copy">You earn $3287 today, it's higher than last month. Keep up your good work!</p>
+
+          <div class="target-summary">
+            <div>
+              <span>Target</span>
+              <strong>$20K <i class="bi bi-arrow-down down"></i></strong>
+            </div>
+            <div>
+              <span>Revenue</span>
+              <strong>$20K <i class="bi bi-arrow-up up"></i></strong>
+            </div>
+            <div>
+              <span>Today</span>
+              <strong>$20K <i class="bi bi-arrow-up up"></i></strong>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="statistics-card" aria-label="Statistics">
+        <div class="statistics-header">
+          <div>
+            <h2>Statistics</h2>
+            <p>Target you've set for each month</p>
+          </div>
+
+          <div class="statistics-actions">
+            <div class="tabs" aria-label="Statistics tabs">
+              <button type="button" class="active">Overview</button>
+              <button type="button">Sales</button>
+              <button type="button">Revenue</button>
+            </div>
+            <button type="button" class="date-range"><i class="bi bi-calendar3"></i> May 11 - May 17</button>
+          </div>
+        </div>
+
+        <div class="statistics-chart" aria-label="Statistics chart">
+          <span class="stats-axis">250</span>
+          <div class="stats-grid">
+            <span></span>
+            <span></span>
+            <span></span>
+            <div class="stats-bars">
+              <span *ngFor="let value of statisticsBars" [style.height.%]="value"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+  </section>
+</main>

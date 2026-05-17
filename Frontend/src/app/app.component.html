@@ -57,16 +57,16 @@
 </svg>
 
 <!-- Header -->
-<app-header></app-header>
-<div class="header-spacer"></div>
+<app-header *ngIf="!isAdminDashboard"></app-header>
+<div class="header-spacer" *ngIf="!isAdminDashboard"></div>
 
 <router-outlet></router-outlet>
 
 <!-- Footer -->
-<app-footer></app-footer>
+<app-footer *ngIf="!isAdminDashboard"></app-footer>
 
 <!-- Chatbot -->
-<app-chatbot></app-chatbot>
+<app-chatbot *ngIf="!isAdminDashboard"></app-chatbot>
 
 
 
