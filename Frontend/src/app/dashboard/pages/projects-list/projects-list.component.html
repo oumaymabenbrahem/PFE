@@ -462,7 +462,7 @@
                 <p class="mt-2 mb-0 fw-bold title-scenario text-light">{{ scenario.nomSenario }}</p>
                 <small class="scenario-desc d-block mt-1">{{ scenario.description }}</small>
               </td>
-              <td>
+              <td class="gherkin-scenario-cell">
                 <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
               </td>
             </tr>
@@ -478,18 +478,88 @@
           <span *ngIf="!isJiraConnected" class="badge bg-secondary ms-2">Non connecté</span>
         </h6>
 
-        
+        <div *ngIf="isJiraConnected" class="mb-3">
+          <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <div class="text-light" style="font-size: 0.9rem; font-weight: 600;">
+              Configuration Xray utilisateur
+              <span *ngIf="xrayConfigured" class="badge bg-success ms-2">Configuré</span>
+              <span *ngIf="!xrayConfigured && !isLoadingXrayConfig" class="badge bg-warning text-dark ms-2">À configurer</span>
+            </div>
+            <button *ngIf="xrayConfigured" type="button" class="btn btn-sm jira-edit-btn"
+              (click)="showXrayConfigForm = !showXrayConfigForm">
+              {{ showXrayConfigForm ? 'Masquer' : 'Modifier' }}
+            </button>
+          </div>
+
+          <small *ngIf="isLoadingXrayConfig" class="text-muted d-block mb-2">Vérification de la configuration Xray...</small>
+
+          <div *ngIf="showXrayConfigForm" class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label jira-field-label mb-1">URL Xray Cloud</label>
+              <input type="text" class="form-control form-control-sm jira-input"
+                placeholder="https://xray.cloud.getxray.app"
+                [value]="xrayBaseUrlInput"
+                (input)="xrayBaseUrlInput = $any($event.target).value">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label jira-field-label mb-1">Xray Client ID</label>
+              <input type="text" class="form-control form-control-sm jira-input"
+                placeholder="Client ID Xray Cloud"
+                autocomplete="off"
+                spellcheck="false"
+                [value]="xrayClientIdInput"
+                (input)="xrayClientIdInput = $any($event.target).value">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label jira-field-label mb-1">Xray Client Secret</label>
+              <input type="password" class="form-control form-control-sm jira-input"
+                placeholder="Client Secret Xray Cloud"
+                autocomplete="new-password"
+                spellcheck="false"
+                [value]="xrayClientSecretInput"
+                (input)="xrayClientSecretInput = $any($event.target).value">
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-sm jira-submit-btn w-100"
+                (click)="saveXrayConfig()"
+                [disabled]="isSavingXrayConfig || !xrayClientIdInput || !xrayClientSecretInput">
+                {{ isSavingXrayConfig ? 'Test...' : 'Enregistrer' }}
+              </button>
+            </div>
+          </div>
+
+          <small *ngIf="xrayConfigMessage" class="text-success d-block mt-2">{{ xrayConfigMessage }}</small>
+          <small *ngIf="xrayConfigError" class="text-danger d-block mt-2">{{ xrayConfigError }}</small>
+          <small *ngIf="showXrayConfigForm" class="text-muted d-block mt-2">Le Secret Client Xray n'est visible qu'une seule fois lors de la création de la clé API.</small>
+        </div>
 
         <div *ngIf="isJiraConnected" class="jira-form-row">
           <div class="jira-key-col">
-            <label class="form-label jira-field-label mb-1">Nom du Projet : </label>
-            <input type="text" class="form-control form-control-sm jira-input"
-              placeholder="Entrez la clé du votre  projet" (input)="jiraProjectKey = $any($event.target).value"
-              [value]="jiraProjectKey">
+            <label class="form-label jira-field-label jira-project-label mb-1">Projet Jira</label>
+            <div class="jira-project-dropdown" [class.open]="isJiraProjectDropdownOpen">
+              <button type="button" class="jira-project-trigger"
+                (click)="toggleJiraProjectDropdown()"
+                [disabled]="isLoadingJiraProjects || jiraProjects.length === 0">
+                <span>{{ isLoadingJiraProjects ? 'Chargement des projets...' : getSelectedJiraProjectLabel() }}</span>
+                <i class="bi bi-chevron-down"></i>
+              </button>
+              <div class="jira-project-menu" *ngIf="isJiraProjectDropdownOpen">
+                <button type="button" class="jira-project-option"
+                  *ngFor="let project of jiraProjects"
+                  [class.selected]="project.key === jiraProjectKey"
+                  (click)="selectJiraProject(project)">
+                  <span class="jira-project-name">{{ project.name }}</span>
+                  <span class="jira-project-key">{{ project.key }}</span>
+                </button>
+              </div>
+            </div>
+            <small *ngIf="isLoadingJiraProjects" class="text-muted d-block mt-1">Chargement des projets Jira...</small>
+            <small *ngIf="!isLoadingJiraProjects && jiraProjectsError" class="text-danger d-block mt-1">{{ jiraProjectsError }}</small>
+            <small *ngIf="!isLoadingJiraProjects && !jiraProjectsError && jiraProjects.length === 0" class="text-warning d-block mt-1">Aucun projet Jira accessible avec ce compte.</small>
           </div>
           <div class="jira-button-col">
             <button class="btn btn-sm jira-submit-btn" (click)="pushToJira()"
-              [disabled]="isPushingToJira || !jiraProjectKey">
+              [disabled]="isPushingToJira || isLoadingJiraProjects || isLoadingXrayConfig || !xrayConfigured || !jiraProjectKey">
               <i class="bi" [ngClass]="isPushingToJira ? 'bi-hourglass-split' : 'bi-cloud-arrow-up'"></i>
               {{ isPushingToJira ? 'Envoi...' : 'Envoyer vers Jira Xray' }}
             </button>
@@ -511,13 +581,7 @@
         </div>
       </div>
 
-      <div class="us-footer result-footer">
-        <button class="btn btn-outline-secondary me-2" (click)="closeUserStoryModal()">Fermer</button>
-        <!-- Le bouton "Voir les tests" est momentanément désactivé car la page de consultation des scripts complets n'est pas encore développée. Vous pouvez les voir ici pour l'instant ! -->
-        <button class="btn btn-success" disabled
-          title="La page de gestion des scripts sera développée prochainement !"><i class="bi bi-check-circle me-1"></i>
-          Sauvegardé en Base !</button>
-      </div>
+      
     </div>
   </div>
 </div>
@@ -568,7 +632,6 @@
     <!-- Top Header Navigation -->
     <div class="wt-top-nav">
       <div class="d-flex align-items-center">
-        <i class="bi bi-robot text-primary me-2 fs-4"></i>
         <h4 class="m-0 text-dark fw-bold">Pipeline de Tests</h4>
       </div>
       <button class="wt-delete-btn" (click)="closeWebTestingDashboard()">
@@ -753,21 +816,35 @@
               <i class="bi bi-inbox fs-3 d-block mb-2"></i>
               <p>Aucun scénario généré pour le moment</p>
             </div>
-            <div *ngIf="generatedScenarios && generatedScenarios.length > 0" class="scenarios-list">
-              <div *ngFor="let scenario of generatedScenarios" class="scenario-item">
-                <div class="scenario-header">
-                  <span class="badge" [ngClass]="{
-                    'type-fonctionnel': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || !scenario.type,
-                    'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
-                    'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
-                    'bg-danger': scenario.type === 'Négatif',
-                    'bg-primary': scenario.type === 'Performance'
-                  }">
-                    {{ scenario.type || 'Fonctionnel' }}
-                  </span>
-                  <strong class="ms-2">{{ scenario.nomSenario }}</strong>
-                </div>
-                <small class="scenario-desc d-block mt-1" *ngIf="scenario.description">{{ scenario.description }}</small>
+            <div *ngIf="generatedScenarios && generatedScenarios.length > 0" class="result-view mt-3">
+              <div class="table-responsive gherkin-table-container">
+                <table class="table table-dark gherkin-table align-middle m-0" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th scope="col" style="width: 25%">Type / Titre</th>
+                      <th scope="col" style="width: 75%">Scénario (Gherkin)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let scenario of generatedScenarios">
+                      <td>
+                        <span class="badge" [ngClass]="{
+                             'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
+                             'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
+                             'bg-danger': scenario.type === 'Négatif',
+                             'bg-primary': scenario.type === 'Performance'
+                           }">
+                          {{ scenario.type || 'Fonctionnel' }}
+                        </span>
+                        <p class="mt-2 mb-0 fw-bold title-scenario text-light">{{ scenario.nomSenario }}</p>
+                        <small class="scenario-desc d-block mt-1">{{ scenario.description }}</small>
+                      </td>
+                      <td class="gherkin-scenario-cell">
+                        <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1113,8 +1190,8 @@
                     <i class="bi bi-arrow-right me-1"></i>{{ sc.resultatAttendu }}
                   </small>
                 </td>
-                <td>
-                  <pre class="mb-0 p-2 rounded" style="background: rgba(0,0,0,0.4); font-size: 0.78rem; max-height: 140px; overflow-y: auto; color: #a8d8a8; white-space: pre-wrap; font-family: 'Courier New', monospace; border: 1px solid rgba(255,255,255,0.1);">{{ sc.senario }}</pre>
+                <td class="gherkin-scenario-cell">
+                  <pre class="wt-gherkin-code">{{ sc.senario }}</pre>
                 </td>
               </tr>
             </tbody>

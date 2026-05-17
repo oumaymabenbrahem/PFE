@@ -65,6 +65,51 @@ public class JiraController {
         }
     }
 
+    @GetMapping("/projects")
+    public ResponseEntity<?> getJiraProjects() {
+        try {
+            UUID userId = getCurrentUserId();
+            return ResponseEntity.ok(jiraService.getAccessibleProjects(userId));
+        } catch (Exception e) {
+            log.error("Erreur lors de la récupération des projets Jira", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ProjectController.ErrorResponse("Erreur récupération projets Jira: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/xray-config/status")
+    public ResponseEntity<?> getXrayConfigStatus() {
+        try {
+            UUID userId = getCurrentUserId();
+            Map<String, Object> response = new HashMap<>();
+            response.put("configured", jiraService.isXrayConfigured(userId));
+            response.put("baseUrl", jiraService.getXrayBaseUrl(userId));
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Erreur lors de la vérification de la configuration Xray", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ProjectController.ErrorResponse("Erreur configuration Xray: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/xray-config")
+    public ResponseEntity<?> saveXrayConfig(@RequestBody Map<String, Object> payload) {
+        try {
+            UUID userId = getCurrentUserId();
+            String clientId = (String) payload.get("clientId");
+            String clientSecret = (String) payload.get("clientSecret");
+            String baseUrl = (String) payload.get("baseUrl");
+
+            jiraService.saveXrayConfig(userId, clientId, clientSecret, baseUrl);
+
+            return ResponseEntity.ok(new ProjectController.SuccessResponse("Configuration Xray enregistrée avec succès."));
+        } catch (Exception e) {
+            log.error("Erreur lors de l'enregistrement de la configuration Xray", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ProjectController.ErrorResponse("Erreur configuration Xray: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/push-tests")
     public ResponseEntity<?> pushTestsToXray(@RequestBody Map<String, Object> payload) {
         try {

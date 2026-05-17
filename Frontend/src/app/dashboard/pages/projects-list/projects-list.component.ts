@@ -4,7 +4,7 @@ import { ProjectResponse } from '../../../shared/models/project.model';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { JiraService } from '../../../core/services/jira.service';
+import { JiraProject, JiraService } from '../../../core/services/jira.service';
 
 @Component({
   selector: 'app-projects-list',
@@ -21,7 +21,20 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   selectedProjectForDetails: ProjectResponse | null = null;  
   generatedScenarios: any[] | null = null;
   isJiraConnected = false;
+  xrayConfigured = false;
+  isLoadingXrayConfig = false;
+  isSavingXrayConfig = false;
+  showXrayConfigForm = false;
+  xrayClientIdInput = '';
+  xrayClientSecretInput = '';
+  xrayBaseUrlInput = 'https://xray.cloud.getxray.app';
+  xrayConfigMessage = '';
+  xrayConfigError = '';
+  jiraProjects: JiraProject[] = [];
+  isLoadingJiraProjects = false;
+  jiraProjectsError = '';
   jiraProjectKey = '';
+  isJiraProjectDropdownOpen = false;
   jiraUserStoryId = '';
   isPushingToJira = false;
   pushMessage = '';
@@ -97,6 +110,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       if (params['jira'] === 'success') {
         this.successMessage = "Connecté à Jira avec succès !";
         this.isJiraConnected = true;
+        this.loadJiraProjects();
+        this.loadXrayConfigStatus();
         setTimeout(() => this.successMessage = '', 6000);
       } else if (params['jira'] === 'error') {
         this.errorMessage = "Échec de la connexion à Jira.";
@@ -107,9 +122,126 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
 
   checkJiraStatus(): void {
     this.jiraService.getStatus().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => this.isJiraConnected = res.connected,
-      error: () => this.isJiraConnected = false
+      next: (res) => {
+        this.isJiraConnected = res.connected;
+        if (res.connected) {
+          this.loadJiraProjects();
+          this.loadXrayConfigStatus();
+        } else {
+          this.jiraProjects = [];
+          this.resetXrayConfigState();
+        }
+      },
+      error: () => {
+        this.isJiraConnected = false;
+        this.jiraProjects = [];
+        this.resetXrayConfigState();
+      }
     });
+  }
+
+  private resetXrayConfigState(): void {
+    this.xrayConfigured = false;
+    this.isLoadingXrayConfig = false;
+    this.isSavingXrayConfig = false;
+    this.showXrayConfigForm = false;
+    this.xrayClientIdInput = '';
+    this.xrayClientSecretInput = '';
+    this.xrayBaseUrlInput = 'https://xray.cloud.getxray.app';
+    this.xrayConfigMessage = '';
+    this.xrayConfigError = '';
+  }
+
+  loadXrayConfigStatus(): void {
+    this.isLoadingXrayConfig = true;
+    this.xrayConfigError = '';
+
+    this.jiraService.getXrayConfigStatus().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.xrayConfigured = res.configured;
+        this.xrayBaseUrlInput = res.baseUrl || 'https://xray.cloud.getxray.app';
+        this.showXrayConfigForm = !res.configured;
+        this.isLoadingXrayConfig = false;
+      },
+      error: (err) => {
+        console.error('Erreur statut configuration Xray:', err);
+        this.xrayConfigured = false;
+        this.showXrayConfigForm = true;
+        this.isLoadingXrayConfig = false;
+        this.xrayConfigError = err.error?.message || 'Impossible de vérifier la configuration Xray.';
+      }
+    });
+  }
+
+  saveXrayConfig(): void {
+    const clientId = this.xrayClientIdInput.trim();
+    const clientSecret = this.xrayClientSecretInput.trim();
+    const baseUrl = this.xrayBaseUrlInput.trim() || 'https://xray.cloud.getxray.app';
+
+    if (!clientId || !clientSecret) {
+      this.xrayConfigError = 'Client ID et Client Secret Xray sont obligatoires.';
+      return;
+    }
+
+    this.isSavingXrayConfig = true;
+    this.xrayConfigError = '';
+    this.xrayConfigMessage = '';
+
+    this.jiraService.saveXrayConfig(clientId, clientSecret, baseUrl).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.isSavingXrayConfig = false;
+        this.xrayConfigured = true;
+        this.showXrayConfigForm = false;
+        this.xrayClientIdInput = '';
+        this.xrayClientSecretInput = '';
+        this.xrayConfigMessage = res?.message || 'Configuration Xray enregistrée.';
+        setTimeout(() => this.xrayConfigMessage = '', 6000);
+      },
+      error: (err) => {
+        this.isSavingXrayConfig = false;
+        console.error('Erreur sauvegarde configuration Xray:', err);
+        this.xrayConfigError = err.error?.message || 'Erreur lors de la configuration Xray.';
+      }
+    });
+  }
+
+  loadJiraProjects(): void {
+    this.isLoadingJiraProjects = true;
+    this.jiraProjectsError = '';
+
+    this.jiraService.getProjects().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (projects) => {
+        this.jiraProjects = projects;
+        this.isLoadingJiraProjects = false;
+        this.isJiraProjectDropdownOpen = false;
+        if (projects.length === 1 && !this.jiraProjectKey) {
+          this.jiraProjectKey = projects[0].key;
+        }
+      },
+      error: (err) => {
+        console.error('Erreur chargement projets Jira:', err);
+        this.jiraProjects = [];
+        this.isLoadingJiraProjects = false;
+        this.isJiraProjectDropdownOpen = false;
+        this.jiraProjectsError = err.error?.message || 'Impossible de charger les projets Jira.';
+      }
+    });
+  }
+
+  toggleJiraProjectDropdown(): void {
+    if (this.isLoadingJiraProjects || this.jiraProjects.length === 0) return;
+    this.isJiraProjectDropdownOpen = !this.isJiraProjectDropdownOpen;
+  }
+
+  selectJiraProject(project: JiraProject): void {
+    this.jiraProjectKey = project.key;
+    this.isJiraProjectDropdownOpen = false;
+    this.pushError = '';
+  }
+
+  getSelectedJiraProjectLabel(): string {
+    const selectedProject = this.jiraProjects.find(project => project.key === this.jiraProjectKey);
+    return selectedProject ? `${selectedProject.name} (${selectedProject.key})` : 'Choisir un projet Jira';
   }
 
   connectJira(): void {
@@ -125,12 +257,26 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
 
   pushToJira(): void {
     if (!this.generatedScenarios || this.generatedScenarios.length === 0) return;
+    const projectKey = this.jiraProjectKey.trim();
+    if (!projectKey) {
+      this.pushError = 'Veuillez choisir un projet Jira.';
+      setTimeout(() => this.pushError = '', 5000);
+      return;
+    }
+
+    if (!this.xrayConfigured) {
+      this.pushError = 'Veuillez configurer vos identifiants Xray avant l\'envoi.';
+      this.showXrayConfigForm = true;
+      setTimeout(() => this.pushError = '', 5000);
+      return;
+    }
     
     this.isPushingToJira = true;
+    this.isJiraProjectDropdownOpen = false;
     this.pushMessage = '';
     this.pushError = '';
 
-    this.jiraService.pushTests(this.jiraProjectKey, this.jiraUserStoryId, this.generatedScenarios)
+    this.jiraService.pushTests(projectKey, this.jiraUserStoryId, this.generatedScenarios)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
@@ -446,6 +592,10 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
    */
   openUserStoryModal(project: ProjectResponse): void {
     this.selectedUserStoryProject = project;
+    this.jiraProjectKey = this.jiraProjects.length === 1 ? this.jiraProjects[0].key : '';
+    this.isJiraProjectDropdownOpen = false;
+    this.pushMessage = '';
+    this.pushError = '';
     // Empêcher le défilement de l'arrière-plan
     document.body.style.overflow = 'hidden';
   }
@@ -457,6 +607,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.selectedUserStoryProject = null;
     this.generatedScenarios = null;
     this.generatingId = null;
+    this.isJiraProjectDropdownOpen = false;
     // Restaurer le défilement
     document.body.style.overflow = '';
   }

@@ -49,6 +49,17 @@ public class User {
     @Column(length = 255)
     private String jiraCloudId;
 
+    @Convert(converter = StringCryptoConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private String xrayClientId;
+
+    @Convert(converter = StringCryptoConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private String xrayClientSecret;
+
+    @Column(length = 255)
+    private String xrayBaseUrl;
+
     @PrePersist
     protected void onCreate() {
         createdAt = System.currentTimeMillis();
