@@ -399,17 +399,23 @@ class GherkinExecutor:
         """Return True when an element can realistically receive typed text."""
         try:
             tag = (element.tag_name or "").lower()
-            role = (element.get_attribute("role") or "").lower()
             contenteditable = (element.get_attribute("contenteditable") or "").lower()
             input_type = (element.get_attribute("type") or "").lower()
+            readonly = (element.get_attribute("readonly") or "").lower()
+            aria_readonly = (element.get_attribute("aria-readonly") or "").lower()
+            disabled = (element.get_attribute("disabled") or "").lower()
+            aria_disabled = (element.get_attribute("aria-disabled") or "").lower()
+
+            if readonly in {"true", "readonly"} or aria_readonly == "true":
+                return False
+            if disabled in {"true", "disabled"} or aria_disabled == "true":
+                return False
 
             if tag == "textarea":
                 return True
             if tag == "input" and input_type not in {"hidden", "button", "submit", "checkbox", "radio"}:
                 return True
             if contenteditable == "true":
-                return True
-            if role in {"textbox", "searchbox", "combobox"}:
                 return True
         except Exception:
             return False
@@ -711,13 +717,189 @@ class GherkinExecutor:
 
         return None
 
+    def _field_label_from_step(self, step_text: str, candidate: str) -> Optional[str]:
+        quote_pattern = r'["\u00ab\u00bb\u201c\u201d]([^"\u00ab\u00bb\u201c\u201d]{1,160})["\u00ab\u00bb\u201c\u201d]'
+        candidate_clean = self._strip_locator_markup(candidate)
+
+        quoted_candidate = re.findall(quote_pattern, candidate_clean)
+        if quoted_candidate:
+            return self._clean_field_label(quoted_candidate[-1])
+
+        field_match = re.search(
+            r"(?:dans|into|in|à|au)\s+(?:(?:le|la|the)\s+)?(?:champ|field|zone|input|textarea)\s+"
+            + quote_pattern,
+            step_text or "",
+            flags=re.IGNORECASE,
+        )
+        if field_match:
+            return self._clean_field_label(field_match.group(1))
+
+        candidate_label = self._clean_field_label(candidate_clean)
+        if candidate_label:
+            return candidate_label
+        return None
+
+    def _clean_field_label(self, label: str) -> Optional[str]:
+        label = re.sub(r"\s+", " ", str(label or "")).strip().strip('"').strip("'")
+        label = re.sub(r"^(?:(?:le|la|the)\s+)?(?:champ|field|zone|input|textarea)\s+", "", label, flags=re.IGNORECASE).strip()
+        if not label:
+            return None
+        generic = {"champ", "field", "zone", "input", "textarea", "le champ", "la zone"}
+        if label.lower() in generic:
+            return None
+        return label
+
+    def _field_label_variants(self, label: str) -> List[str]:
+        base = self._clean_field_label(label)
+        if not base:
+            return []
+        without_required = re.sub(r"\s*\*+\s*$", "", base).strip()
+        without_required = without_required.replace("*", "").strip()
+        variants = []
+        for value in (base, without_required):
+            if value and value not in variants:
+                variants.append(value)
+        return variants
+
+    def _resolve_text_input_by_label(self, label: str, intent: Optional[str]) -> Optional[Any]:
+        variants = self._field_label_variants(label)
+        if not variants:
+            return None
+
+        editable = "self::input or self::textarea or @contenteditable='true'"
+        editable_selector = (
+            "input:not([type='hidden']):not([type='button']):not([type='submit'])"
+            ":not([type='checkbox']):not([type='radio']), textarea, [contenteditable='true']"
+        )
+
+        try:
+            element = self.driver.execute_script(
+                """
+                const variants = arguments[0] || [];
+                const editableSelector = arguments[1];
+                const normalize = (value) => String(value || '')
+                  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  .toLowerCase().replace(/\*/g, '')
+                  .replace(/[^a-z0-9]+/g, ' ')
+                  .replace(/\s+/g, ' ').trim();
+                const targets = variants.map(normalize).filter(Boolean);
+                const matchesTarget = (value) => {
+                  const normalized = normalize(value);
+                  return normalized && targets.some((target) =>
+                    normalized === target || normalized.includes(target) || target.includes(normalized)
+                  );
+                };
+                const isUsable = (element) => {
+                  if (!element) return false;
+                  const style = window.getComputedStyle(element);
+                  const rect = element.getBoundingClientRect();
+                  return rect.width > 0 && rect.height > 0
+                    && style.visibility !== 'hidden'
+                    && style.display !== 'none'
+                    && !element.disabled
+                    && !element.readOnly
+                    && element.getAttribute('aria-disabled') !== 'true'
+                    && element.getAttribute('aria-readonly') !== 'true';
+                };
+                const editables = Array.from(document.querySelectorAll(editableSelector)).filter(isUsable);
+                const editableCount = (root) => Array.from(root.querySelectorAll(editableSelector)).filter(isUsable).length;
+                const labels = Array.from(document.querySelectorAll('label, mat-label')).filter((label) => matchesTarget(label.textContent));
+                let best = null;
+                let bestScore = -1;
+
+                const score = (element, value) => {
+                  if (value > bestScore) {
+                    best = element;
+                    bestScore = value;
+                  }
+                };
+
+                for (const element of editables) {
+                  const attrText = [
+                    element.getAttribute('placeholder'),
+                    element.getAttribute('aria-label'),
+                    element.getAttribute('title'),
+                    element.getAttribute('name'),
+                    element.getAttribute('id'),
+                    element.getAttribute('formcontrolname'),
+                    element.getAttribute('ng-reflect-name')
+                  ].join(' ');
+                  if (matchesTarget(attrText)) score(element, 120);
+
+                  if (element.id) {
+                    const ownLabels = Array.from(document.querySelectorAll(`label[for="${CSS.escape(element.id)}"]`));
+                    if (ownLabels.some((label) => matchesTarget(label.textContent))) score(element, 115);
+                  }
+
+                  let parent = element.parentElement;
+                  for (let depth = 0; parent && depth < 4; depth += 1, parent = parent.parentElement) {
+                    const className = String(parent.className || '').toLowerCase();
+                    const allowedContainer = /p-float-label|mat-form-field|form-group|p-field|field|input-group/.test(className);
+                    if (allowedContainer && matchesTarget(parent.textContent) && editableCount(parent) === 1) {
+                      score(element, 95 - depth);
+                    }
+                  }
+
+                  for (const labelElement of labels) {
+                    if (labelElement.parentElement === element.parentElement) score(element, 110);
+                    if (labelElement.previousElementSibling === element || labelElement.nextElementSibling === element) score(element, 108);
+                    let parent = labelElement.parentElement;
+                    for (let depth = 0; parent && depth < 4; depth += 1, parent = parent.parentElement) {
+                      if (parent.contains(element) && editableCount(parent) === 1) score(element, 100 - depth);
+                    }
+                  }
+                }
+                return best;
+                """,
+                variants,
+                editable_selector
+            )
+            resolved = self._candidate_text_input(element, intent)
+            if resolved:
+                logger.info("Resolved field '%s' by JS label/attribute matching.", variants[0])
+                return resolved
+        except Exception as e:
+            logger.debug("JS label field resolution failed for '%s': %s", label, e)
+
+        for variant in variants:
+            lower_literal = self._xpath_literal(variant.lower())
+            attr_lookup = self._lower_xpath("concat(@placeholder, ' ', @aria-label, ' ', @title, ' ', @name, ' ', @id, ' ', @formcontrolname)")
+            text_lookup = self._lower_xpath("normalize-space(.)")
+
+            strategies = [
+                (By.XPATH, f"//*[{editable}][not(@type='hidden') and contains({attr_lookup}, {lower_literal})]"),
+                (By.XPATH, f"//*[{editable}][@id = //label[contains({text_lookup}, {lower_literal})]/@for and not(@type='hidden')]"),
+                (By.XPATH, f"//*[self::label or self::mat-label][contains({text_lookup}, {lower_literal})]/ancestor::*[self::mat-form-field or contains(@class, 'mat-form-field') or contains(@class, 'p-float-label')][1]//*[{editable}][not(@type='hidden')]"),
+                (By.XPATH, f"//*[self::label or self::mat-label][contains({text_lookup}, {lower_literal})]/parent::*/*[{editable}][not(@type='hidden')]"),
+                (By.XPATH, f"//*[self::label or self::mat-label][contains({text_lookup}, {lower_literal})]/preceding-sibling::*[{editable}][not(@type='hidden')][1]"),
+                (By.XPATH, f"//*[self::label or self::mat-label][contains({text_lookup}, {lower_literal})]/following-sibling::*[{editable}][not(@type='hidden')][1]"),
+            ]
+
+            for by_type, selector_value in strategies:
+                element = self._find_first_usable_element(by_type, selector_value, timeout=1.2, require_enabled=True)
+                resolved = self._candidate_text_input(element, intent)
+                if resolved:
+                    logger.info("Resolved field '%s' by label/placeholder.", variant)
+                    return resolved
+
+        return None
+
     def _resolve_text_input_for_step(self, step_text: str, candidate: str) -> Optional[Any]:
         """Resolve an editable field, with robust fallbacks for SPA widgets."""
         self._dismiss_cookie_banner_if_present(step_text=step_text, target=candidate)
 
         intent = self._field_intent_from_step(step_text, candidate)
+        target_label = self._field_label_from_step(step_text, candidate)
         explicit_locator = self._has_locator_hint(step_text) or self._has_locator_hint(candidate)
         locator = self._extract_locator_hint(step_text, candidate)
+
+        if target_label:
+            labeled = self._resolve_text_input_by_label(target_label, intent)
+            if labeled:
+                return labeled
+            if not intent:
+                logger.warning("Field label '%s' was requested but no matching editable control was found.", target_label)
+                return None
 
         if explicit_locator:
             for by_type, selector_value in self._locator_strategies(locator):
