@@ -1815,82 +1815,12 @@ def _extract_focus_click_labels(focus_objective: str) -> List[str]:
     return cleaned
 
 
-def _extract_focus_actions(focus_objective: str) -> List[Dict[str, str]]:
-    text = str(focus_objective or "")
-    quoted = r'["\u00ab\u00bb\u201c\u201d]([^"\u00ab\u00bb\u201c\u201d]{1,160})["\u00ab\u00bb\u201c\u201d]'
-    actions: List[Dict[str, str]] = []
-    matched_spans: List[Tuple[int, int]] = []
-
-    input_pattern = re.compile(
-        r"\b(?:saisit|saisir|tape|remplit|renseigne|entre)\s+"
-        + quoted
-        + r"\s+(?:dans|sur|au|à)\s+(?:(?:le|la)\s+)?(?:champ|zone|input|textarea)\s+"
-        + quoted,
-        flags=re.IGNORECASE,
-    )
-    for match in input_pattern.finditer(text):
-        matched_spans.append(match.span())
-        actions.append({
-            "kind": "input",
-            "pos": str(match.start()),
-            "value": re.sub(r"\s+", " ", match.group(1)).strip(),
-            "field": re.sub(r"\s+", " ", match.group(2)).strip(),
-        })
-
-    click_pattern = re.compile(
-        r"\b(?:clique|click|appuie)\s+(?:sur\s+)?(?:(?:le|la)\s+)?(?:(menu|bouton|lien)\s+)?"
-        + quoted,
-        flags=re.IGNORECASE,
-    )
-    for match in click_pattern.finditer(text):
-        matched_spans.append(match.span())
-        label = re.sub(r"\s+", " ", match.group(2)).strip()
-        if not label or label.lower().startswith(("http://", "https://")):
-            continue
-        if _normalize_for_match(label) == "connexion":
-            continue
-        actions.append({
-            "kind": "click",
-            "pos": str(match.start()),
-            "label": label,
-            "role": (match.group(1) or "").lower(),
-        })
-
-    unquoted_click_pattern = re.compile(
-        r"\b(?:clique|click|appuie)\s+(?:sur\s+)?(?:(?:le|la)\s+)?(?:(menu|bouton|lien)\s+)?"
-        r"([^\"\u00ab\u00bb\u201c\u201d.,;]+)",
-        flags=re.IGNORECASE,
-    )
-    for match in unquoted_click_pattern.finditer(text):
-        if any(start <= match.start() < end for start, end in matched_spans):
-            continue
-        label = re.sub(r"\s+", " ", match.group(2)).strip()
-        label = re.split(
-            r"\s+(?:a|à)\s+la\s+fin|\s+dans\s+la\s+barre|\s+de\s+la\s+page|\s+et\s+|\s+puis\s+",
-            label,
-            maxsplit=1,
-            flags=re.IGNORECASE,
-        )[0].strip()
-        label_norm = _normalize_for_match(label)
-        if not label or label_norm in {"le", "la", "menu", "bouton", "lien", "champ"}:
-            continue
-        actions.append({
-            "kind": "click",
-            "pos": str(match.start()),
-            "label": label,
-            "role": (match.group(1) or "").lower(),
-        })
-
-    actions.sort(key=lambda action: int(action.get("pos", "0")))
-    return actions
-
-
 def _build_focus_workflow_scenario(url: str, focus_objective: str) -> Optional[Dict]:
     username, password = _extract_focus_credentials(focus_objective)
-    actions = _extract_focus_actions(focus_objective)
+    click_labels = _extract_focus_click_labels(focus_objective)
     focus_norm = _normalize_for_match(focus_objective)
 
-    if not username or not password or not actions:
+    if not username or not password or not click_labels:
         return None
     if "connexion" not in focus_norm and "connect" not in focus_norm:
         return None
@@ -1903,30 +1833,13 @@ def _build_focus_workflow_scenario(url: str, focus_objective: str) -> Optional[D
         "    Then l'URL devrait contenir \"dash\"",
     ]
 
-    click_count = 0
-    for action in actions:
-        if action.get("kind") == "input":
-            field = action.get("field", "")
-            field_norm = _normalize_for_match(field)
-            if "mot de passe" in field_norm or "nom d utilisateur" in field_norm:
-                continue
-            value = _safe_gherkin_value(action.get("value", ""))
-            safe_field = _safe_gherkin_value(field)
-            steps.append(f"    And l'utilisateur saisit \"{value}\" dans le champ \"{safe_field}\"")
-            continue
-
-        label = action.get("label", "")
-        role = action.get("role", "")
+    for index, label in enumerate(click_labels):
         safe_label = _safe_gherkin_value(label)
         label_norm = _normalize_for_match(label)
-        click_count += 1
-
-        if role == "menu" or click_count == 1:
+        if index == 0:
             steps.append(f"    And l'utilisateur clique sur le menu \"{safe_label}\" dans la barre latérale gauche")
-        elif role == "bouton" or "ajout" in label_norm or label_norm in {"enregistrer", "sauvegarder", "valider"}:
+        elif "ajout" in label_norm:
             steps.append(f"    And l'utilisateur clique sur le bouton \"{safe_label}\"")
-        elif role == "lien":
-            steps.append(f"    And l'utilisateur clique sur le lien \"{safe_label}\"")
         else:
             steps.append(f"    And l'utilisateur clique sur \"{safe_label}\"")
 

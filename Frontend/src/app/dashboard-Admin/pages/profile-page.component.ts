@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { PlatformUser, UserService } from '../../core/services/user.service';
 
 @Component({
@@ -28,7 +29,7 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
           <button type="button" class="icon-action" (click)="loadUsers()" [disabled]="isLoading" aria-label="Rafraîchir">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
-          <button type="button" class="icon-action" [disabled]="selectedUserIds.size === 0" aria-label="Supprimer la sélection">
+          <button type="button" class="icon-action danger" (click)="openDeleteDialog()" [disabled]="selectedUserIds.size === 0 || isLoading || isDeleting" aria-label="Supprimer la sélection">
             <i class="bi bi-trash"></i>
           </button>
           <button type="button" class="icon-action" [disabled]="selectedUserIds.size === 0" aria-label="Archiver la sélection">
@@ -97,6 +98,44 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
           </button>
         </div>
       </footer>
+
+      <div class="delete-modal-backdrop" *ngIf="showDeleteDialog" (click)="cancelDeleteDialog()" aria-hidden="true"></div>
+      <section
+        class="delete-modal"
+        *ngIf="showDeleteDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deleteDialogTitle"
+      >
+        <div class="delete-modal-header">
+          <div class="delete-modal-icon">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          </div>
+          <div>
+            <h3 id="deleteDialogTitle">Supprimer les utilisateurs sélectionnés</h3>
+            <p>
+              {{ selectedUserIds.size }} utilisateur{{ selectedUserIds.size > 1 ? 's' : '' }} sera{{ selectedUserIds.size > 1 ? 'ont' : 'a' }} supprimé{{ selectedUserIds.size > 1 ? 's' : '' }} définitivement.
+            </p>
+          </div>
+        </div>
+
+        <div class="delete-modal-body">
+          <span class="warning-chip"><i class="bi bi-shield-exclamation"></i> Action irréversible</span>
+          <p>
+            Cette action supprimera les comptes, les accès associés et toutes les données visibles dans cette liste.
+          </p>
+        </div>
+
+        <div class="delete-modal-actions">
+          <button type="button" class="modal-btn cancel" (click)="cancelDeleteDialog()" [disabled]="isDeleting">
+            Annuler
+          </button>
+          <button type="button" class="modal-btn danger" (click)="confirmDeleteSelectedUsers()" [disabled]="isDeleting">
+            <span *ngIf="!isDeleting"><i class="bi bi-trash me-2"></i>Supprimer</span>
+            <span *ngIf="isDeleting"><i class="bi bi-arrow-repeat spin me-2"></i>Suppression...</span>
+          </button>
+        </div>
+      </section>
     </section>
   `,
   styles: [`
@@ -164,6 +203,159 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
       height: 52px;
       place-items: center;
       font-size: 22px;
+      }
+
+    .icon-action.danger {
+      color: #b42318;
+      background: linear-gradient(180deg, #fff5f5 0%, #fff 100%);
+    }
+
+    .icon-action.danger:hover:not(:disabled) {
+      border-color: #fda29b;
+      background: linear-gradient(180deg, #ffe8e6 0%, #fff5f5 100%);
+      color: #7a271a;
+    }
+
+    .delete-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      background: rgba(15, 23, 42, 0.46);
+      backdrop-filter: blur(6px);
+    }
+
+    .delete-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      z-index: 1201;
+      width: min(92vw, 520px);
+      transform: translate(-50%, -50%);
+      border-radius: 24px;
+      border: 1px solid rgba(239, 68, 68, 0.14);
+      background: linear-gradient(180deg, #ffffff 0%, #fffafa 100%);
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+      padding: 1.4rem;
+      color: #111827;
+      animation: modalPop 180ms ease-out;
+    }
+
+    .delete-modal-header {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .delete-modal-icon {
+      flex: 0 0 auto;
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(248, 113, 113, 0.22));
+      color: #b42318;
+      font-size: 1.35rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .delete-modal h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #1f2937;
+    }
+
+    .delete-modal p {
+      margin: 0;
+      color: #6b7280;
+      line-height: 1.6;
+      font-size: 0.97rem;
+    }
+
+    .delete-modal-body {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 18px;
+      background: #f9fafb;
+      border: 1px solid #eef2f7;
+    }
+
+    .warning-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.75rem;
+      margin-bottom: 0.85rem;
+      border-radius: 999px;
+      background: #fff1f2;
+      color: #b42318;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .delete-modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.2rem;
+    }
+
+    .modal-btn {
+      min-width: 132px;
+      height: 46px;
+      border: 0;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .modal-btn.cancel {
+      background: #eef2ff;
+      color: #344054;
+    }
+
+    .modal-btn.cancel:hover:not(:disabled) {
+      background: #e0e7ff;
+      transform: translateY(-1px);
+    }
+
+    .modal-btn.danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fff;
+      box-shadow: 0 14px 28px rgba(239, 68, 68, 0.25);
+    }
+
+    .modal-btn.danger:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(239, 68, 68, 0.32);
+    }
+
+    .modal-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .spin {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes modalPop {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -48%) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     .icon-action:disabled,
@@ -411,6 +603,8 @@ export class ProfilePageComponent implements OnInit {
   selectedUserIds = new Set<string>();
   searchTerm = '';
   currentPage = 1;
+  showDeleteDialog = false;
+  isDeleting = false;
   readonly pageSize = 8;
   isLoading = false;
   errorMessage = '';
@@ -503,6 +697,46 @@ export class ProfilePageComponent implements OnInit {
       return;
     }
     this.selectedUserIds.delete(userId);
+  }
+
+  openDeleteDialog(): void {
+    if (this.selectedUserIds.size === 0 || this.isLoading || this.isDeleting) {
+      return;
+    }
+
+    this.showDeleteDialog = true;
+  }
+
+  cancelDeleteDialog(): void {
+    if (this.isDeleting) {
+      return;
+    }
+
+    this.showDeleteDialog = false;
+  }
+
+  confirmDeleteSelectedUsers(): void {
+    if (this.selectedUserIds.size === 0 || this.isLoading || this.isDeleting) {
+      return;
+    }
+
+    const selectedIds = Array.from(this.selectedUserIds);
+    this.isDeleting = true;
+    this.errorMessage = '';
+
+    forkJoin(selectedIds.map(userId => this.userService.deleteUser(userId))).subscribe({
+      next: () => {
+        this.showDeleteDialog = false;
+        this.isDeleting = false;
+        this.selectedUserIds.clear();
+        this.loadUsers();
+      },
+      error: () => {
+        this.errorMessage = 'Impossible de supprimer les utilisateurs sélectionnés.';
+        this.isDeleting = false;
+        this.showDeleteDialog = false;
+      }
+    });
   }
 
   isSelected(userId: string): boolean {

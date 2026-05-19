@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { RegisterDto } from '../../../shared/models/user.model';
+import { RegisterDto, User } from '../../../shared/models/user.model';
 
 @Component({
   selector: 'app-sign-up',
@@ -267,9 +267,9 @@ export class SignUpComponent implements OnInit, AfterViewInit {
           this.showGentleSuccess();
           
           // Redirection après l'animation
-          setTimeout(() => {
-            this.router.navigate(['/dashboard']);
-          }, 3500);
+              setTimeout(() => {
+                this.redirectAfterLogin(response.user);
+              }, 3500);
         },
         error: (error: any) => {
           console.error('Sign up error:', error);
@@ -281,6 +281,16 @@ export class SignUpComponent implements OnInit, AfterViewInit {
       console.error('Unexpected error:', error);
       this.showError('email', 'Inscription échouée. Veuillez réessayer.');
       this.setLoading(false);
+    }
+  }
+
+  private redirectAfterLogin(user: User): void {
+    const roles = (user && user.roles) ? user.roles : [];
+    const isAdmin = roles.some(r => !!r && r.toString().toUpperCase().includes('ADMIN'));
+    if (isAdmin) {
+      this.router.navigate(['/dashboard-admin']);
+    } else {
+      this.router.navigate(['/dashboard']);
     }
   }
 

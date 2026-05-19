@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { LoginDto } from '../../../shared/models/user.model';
+import { LoginDto, User } from '../../../shared/models/user.model';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -123,7 +123,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
                 console.log('Google login successful:', authResponse.user.email);
                 this.showGentleSuccess();
                 setTimeout(() => {
-                  this.router.navigate(['/dashboard']);
+                        this.redirectAfterLogin(authResponse.user);
                 }, 3500);
               },
               error: (error: any) => {
@@ -329,7 +329,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
           
           // Redirection après l'animation
           setTimeout(() => {
-            this.router.navigate(['/dashboard']);
+            this.redirectAfterLogin(response.user);
           }, 3500);
         },
         error: (error: any) => {
@@ -385,7 +385,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
           console.log('GitHub login successful:', authResponse.user.email);
           this.showGentleSuccess();
           setTimeout(() => {
-            this.router.navigate(['/dashboard']);
+            this.redirectAfterLogin(authResponse.user);
           }, 3500);
         },
         error: (err: any) => {
@@ -468,6 +468,16 @@ export class SignInComponent implements OnInit, AfterViewInit {
     setTimeout(() => {
       console.log('Welcome! Taking you to your dashboard...');
     }, 3500);
+  }
+
+  private redirectAfterLogin(user: User): void {
+    const roles = (user && user.roles) ? user.roles : [];
+    const isAdmin = roles.some(r => !!r && r.toString().toUpperCase().includes('ADMIN'));
+    if (isAdmin) {
+      this.router.navigate(['/dashboard-admin']);
+    } else {
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   private triggerSuccessGlow(): void {

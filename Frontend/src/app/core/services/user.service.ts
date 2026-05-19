@@ -22,4 +22,8 @@ export class UserService {
   getUsers(): Observable<PlatformUser[]> {
     return this.http.get<PlatformUser[]>(this.apiUrl);
   }
+
+  deleteUser(userId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${userId}`);
+  }
 }
