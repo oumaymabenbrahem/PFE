@@ -4,7 +4,7 @@
     <div class="col-auto">
       <button class="btn btn-new-project" (click)="createNewProject()" [disabled]="isLoading">
         <i class="bi bi-plus-circle me-2"></i>
-        Nouveau EspaTest
+        Nouvel Espace de test
       </button>
     </div>
   </div>
@@ -200,8 +200,12 @@
             title="Ouvrir le tableau de bord des tests">
             <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
           </button>
-          <!-- Bouton Envoyer vers Jira Xray (remplace Scripts si TERMINE) -->
-          <button *ngIf="project.statut === 'TERMINE'" class="btn btn-sm btn-primary ms-1 btn-jira-xray"
+          <!-- Bouton Relancer le test ou Vers Jira Xray (remplace Scripts si TERMINE) -->
+          <button *ngIf="project.statut === 'TERMINE' && project.specificationType === 'LIEN_APPLICATION'" class="btn btn-sm btn-primary ms-1 btn-jira-xray"
+            (click)="onGenerateTests(project.id)" title="Relancer le test">
+            <i class="bi bi-arrow-clockwise me-1"></i>Relancer le test
+          </button>
+          <button *ngIf="project.statut === 'TERMINE' && project.specificationType !== 'LIEN_APPLICATION'" class="btn btn-sm btn-primary ms-1 btn-jira-xray"
             (click)="onPushToJiraDirect(project)" title="Envoyer les tests vers Jira Xray">
             <i class="bi bi-cloud-arrow-up me-1"></i>Vers Jira Xray
           </button>
@@ -341,7 +345,11 @@
           <i class="bi bi-lightning-fill me-1"></i>Générer tests
         </button>
         
-        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE'" class="btn btn-success" 
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && selectedProjectForDetails.specificationType === 'LIEN_APPLICATION'" class="btn btn-success" 
+          (click)="onGenerateTests(selectedProjectForDetails.id); closeProjectDetailsModal()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Relancer le test
+        </button>
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && selectedProjectForDetails.specificationType !== 'LIEN_APPLICATION'" class="btn btn-success" 
           (click)="onPushToJiraDirect(selectedProjectForDetails); closeProjectDetailsModal()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Envoyer vers Jira Xray
         </button>

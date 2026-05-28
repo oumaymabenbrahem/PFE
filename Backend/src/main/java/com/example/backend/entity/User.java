@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import jakarta.persistence.Convert;
 import com.example.backend.security.StringCryptoConverter;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -64,4 +65,10 @@ public class User {
     protected void onCreate() {
         createdAt = System.currentTimeMillis();
     }
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Project> ownedProjects;
+
+    @ManyToMany(mappedBy = "members")
+    private List<Project> joinedProjects;
 }

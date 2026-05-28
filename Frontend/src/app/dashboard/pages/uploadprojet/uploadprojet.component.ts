@@ -28,7 +28,6 @@ export class UploadprojetComponent implements OnInit {
       description: [''],
       specificationType: ['USER_STORY', Validators.required],
       userStory: [''],
-      urlGithub: [''],
       urlApplication: [''],
       focusOptionnel: [''],
       zipFile: [null]
@@ -139,16 +138,6 @@ export class UploadprojetComponent implements OnInit {
         this.errorMessage = 'Veuillez saisir une user story';
         return;
       }
-    } else if (specificationType === 'LIEN_GIT') {
-      specificationContenu = this.projectForm.get('urlGithub')?.value?.trim();
-      if (!specificationContenu) {
-        this.errorMessage = 'Veuillez fournir une URL GitHub';
-        return;
-      }
-      if (!/^https:\/\/github\.com\/.+$/.test(specificationContenu)) {
-        this.errorMessage = 'L\'URL GitHub n\'est pas valide';
-        return;
-      }
     } else if (specificationType === 'LIEN_APPLICATION') {
       specificationContenu = this.projectForm.get('urlApplication')?.value?.trim();
       if (!specificationContenu) {
@@ -217,16 +206,13 @@ export class UploadprojetComponent implements OnInit {
     const type = this.projectForm.get('specificationType')?.value;
     
     if (type === 'USER_STORY') {
-      this.projectForm.patchValue({ userStory: '', urlGithub: '', urlApplication: '', focusOptionnel: '' });
-      this.selectedFiles = [];
-    } else if (type === 'LIEN_GIT') {
-      this.projectForm.patchValue({ userStory: '', urlGithub: '', urlApplication: '', focusOptionnel: '' });
+      this.projectForm.patchValue({ userStory: '', urlApplication: '', focusOptionnel: '' });
       this.selectedFiles = [];
     } else if (type === 'LIEN_APPLICATION') {
-      this.projectForm.patchValue({ userStory: '', urlGithub: '', urlApplication: '', focusOptionnel: '' });
+      this.projectForm.patchValue({ userStory: '', urlApplication: '', focusOptionnel: '' });
       this.selectedFiles = [];
     } else if (type === 'CODE_FICHIER') {
-      this.projectForm.patchValue({ userStory: '', urlGithub: '', urlApplication: '', focusOptionnel: '' });
+      this.projectForm.patchValue({ userStory: '', urlApplication: '', focusOptionnel: '' });
     }
   }
 
@@ -260,9 +246,6 @@ export class UploadprojetComponent implements OnInit {
     }
     if (control?.hasError('minlength')) {
       return `Minimum ${control.errors?.['minlength'].requiredLength} caractères`;
-    }
-    if (control?.hasError('pattern')) {
-      return 'URL GitHub invalide. Format: https://github.com/username/repository';
     }
     return '';
   }

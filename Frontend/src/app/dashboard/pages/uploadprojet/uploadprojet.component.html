@@ -28,7 +28,7 @@
       (click)="toggleForm()"
       [class.expanded]="showForm">
       <i class="bi bi-plus-circle-fill"></i>
-      Nouveau EspaTest
+      Nouvel Espace de test
       <i class="bi bi-chevron-down expand-icon" [class.rotated]="showForm"></i>
     </button>
   </div>
@@ -53,7 +53,7 @@
       <!-- Project Name -->
       <div class="form-group">
         <label for="nomProjet" class="form-label">
-          <i class="bi bi-tag"></i> Nom du votre espace de test *
+          <i class="bi bi-tag"></i> Nom de votre espace de test *
         </label>
         <input
           type="text"
@@ -78,7 +78,6 @@
           class="form-select"
           (change)="onSpecificationTypeChange()">
           <option value="LIEN_APPLICATION">🔗 Lien Application</option>
-          <option value="LIEN_GIT">🔗 Lien GitHub</option>
           <option value="CODE_FICHIER">📦 Fichier du projet</option>
           <option value="USER_STORY">📝 User Story</option>
         </select>
@@ -102,25 +101,6 @@
         </div>
       </div>
 
-      <!-- Champ URL GitHub -->
-      <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'LIEN_GIT'">
-        <label for="urlGithub" class="form-label">
-          <i class="bi bi-github"></i> URL GitHub *
-        </label>
-        <input
-          type="url"
-          id="urlGithub"
-          formControlName="urlGithub"
-          class="form-control"
-          placeholder="https://github.com/username/repository"
-          [class.error]="projectForm.get('urlGithub')?.invalid && projectForm.get('urlGithub')?.touched">
-        <div class="error-message" *ngIf="projectForm.get('urlGithub')?.invalid && projectForm.get('urlGithub')?.touched">
-          {{ getErrorMessage('urlGithub') }}
-        </div>
-        <small class="text-muted d-block mt-2">
-          <i class="bi bi-info-circle"></i> Lien vers votre repository GitHub
-        </small>
-      </div>
 
       <!-- Champ URL Application -->
       <div class="form-group" *ngIf="projectForm.get('specificationType')?.value === 'LIEN_APPLICATION'">

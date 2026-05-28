@@ -382,18 +382,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       this.successMessage = '';
     }
   }
-
-  /**
-   * Génère les tests Selenium pour un projet
-   */
   onGenerateTests(projectId: string): void {
     const project = this.projects.find(p => p.id === projectId);
-    
-    // Pour LIEN_APPLICATION: ouvrir le dashboard immédiatement (pour voir le crawling)
-    // Pour CODE_FICHIER: ouvrir APRES la génération des tests
-    if (project?.specificationType === 'LIEN_APPLICATION') {
-      this.openWebTestingDashboard(project);
-    }
     
     this.generatingId = projectId;
 
@@ -404,6 +394,12 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       } else if (project.specificationType === 'CODE_FICHIER') {
           this.successMessage = "🤖 Analyse du fichier en cours... Génération des tests en progression.";
       }
+    }
+
+    // Pour LIEN_APPLICATION: ouvrir le dashboard immédiatement (pour voir le crawling)
+    // Pour CODE_FICHIER: ouvrir APRES la génération des tests
+    if (project?.specificationType === 'LIEN_APPLICATION') {
+      this.openWebTestingDashboard(project);
     }
 
     this.projectService.generateTests(projectId)
