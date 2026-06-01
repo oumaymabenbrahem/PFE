@@ -13,6 +13,7 @@ import { ResetPasswordComponent } from './dashboard/pages/reset-password/reset-p
 import { AuthGuard } from './core/guards/auth.guard';
 import { DashboardAdminComponent } from './dashboard-Admin/dashboard-admin.component';
 import { ProfilePageComponent } from './dashboard-Admin/pages/profile-page.component';
+import { UserProfileComponent } from './dashboard/pages/profile/user-profile.component';
 
 const routes: Routes = [
   // Routes publiques
@@ -40,6 +41,7 @@ const routes: Routes = [
     component: HomeComponent,
     canActivate: [AuthGuard]
   },
+  { path: 'profile', component: UserProfileComponent, canActivate: [AuthGuard] },
   { 
     path: 'upload-projet', 
     component: UploadprojetComponent,

@@ -39,10 +39,11 @@
 .select-wrap {
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 	gap: 0.3rem;
 
 	label {
-		color: #d64545;
+		color: #e64646;
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
@@ -187,9 +188,9 @@ textarea {
 
 .copy-btn {
 	margin-left: auto;
-	border: 1px solid #169c63;
-	background: #169c63;
-	color: #ffffff;
+	border: 1px solid #93c5fd;
+	background: #bfdbfe;
+	color: #1e3a8a;
 	border-radius: 6px;
 	padding: 0.3rem 0.55rem;
 	font-weight: 700;
@@ -226,8 +227,8 @@ textarea {
 }
 
 .btn-export {
-	background: #0b8d74;
-	color: #ffffff;
+	background: #bfdbfe;
+	color: #1e3a8a;
 }
 .scripts-footer {
   display: flex;
@@ -305,7 +306,7 @@ textarea {
 	align-items: center;
 	justify-content: center;
 	flex: 1;
-	color: #d7e8ff;
+	color: #94a3b8;
 	font-style: italic;
 	font-weight: 600;
 

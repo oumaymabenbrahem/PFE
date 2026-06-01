@@ -4,3 +4,59 @@
 @import 'assets/css/normalize.css';
 @import 'assets/css/vendor.css';
 @import 'assets/style.css';
+
+// Override Bootstrap btn-outline-info to gray instead of cyan
+.btn-outline-info {
+  --bs-btn-color: #6c757d !important;
+  --bs-btn-border-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: #6c757d !important;
+  background-color: transparent !important;
+
+  &:hover {
+    --bs-btn-bg: #6c757d !important;
+    --bs-btn-border-color: #6c757d !important;
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+  }
+
+  &:focus,
+  &:active,
+  &.active {
+    --bs-btn-bg: #6c757d !important;
+    --bs-btn-border-color: #6c757d !important;
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+    box-shadow: none !important;
+  }
+}
+
+// Override Bootstrap btn-info to gray instead of cyan
+.btn-info {
+  --bs-btn-bg: #6c757d !important;
+  --bs-btn-border-color: #6c757d !important;
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+
+  &:hover {
+    --bs-btn-bg: #5a6268 !important;
+    --bs-btn-border-color: #5a6268 !important;
+    background-color: #5a6268 !important;
+    border-color: #5a6268 !important;
+    color: white !important;
+  }
+
+  &:focus,
+  &:active,
+  &.active {
+    --bs-btn-bg: #5a6268 !important;
+    --bs-btn-border-color: #5a6268 !important;
+    background-color: #5a6268 !important;
+    border-color: #5a6268 !important;
+    color: white !important;
+    box-shadow: none !important;
+  }
+}

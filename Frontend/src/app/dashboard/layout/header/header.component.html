@@ -24,8 +24,10 @@
       <ul class="navbar-user-list">
         <ng-container *ngIf="currentUser; else notLoggedIn">
           <li class="user-info">
-            <i class="bi bi-person-circle"></i>
-            <span>{{ currentUser.nom }}</span>
+            <a routerLink="/profile" class="user-link">
+              <i class="bi bi-person-circle"></i>
+              <span>{{ currentUser.nom }}</span>
+            </a>
           </li>
           <li class="separator">|</li>
           <li>

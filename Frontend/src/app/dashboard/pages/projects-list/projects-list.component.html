@@ -190,13 +190,13 @@
           </button>
 
           <!-- Bouton Voir les Scénarios (MASQUÉ pour LIEN_APPLICATION) -->
-          <button *ngIf="project.statut === 'TERMINE' && project.specificationType !== 'LIEN_APPLICATION' && project.specificationType !== 'CODE_FICHIER'" class="btn btn-sm btn-info" (click)="viewScenarios(project)"
+          <button *ngIf="project.statut === 'TERMINE' && project.specificationType !== 'LIEN_APPLICATION' && project.specificationType !== 'CODE_FICHIER'" class="btn btn-sm btn-outline-info" (click)="viewScenarios(project)"
             title="Voir les scénarios générés">
             <i class="bi bi-eye me-1"></i>Voir scénarios
           </button>
 
           <!-- Bouton Tableau de bord (AFFICHE pour LIEN_APPLICATION et CODE_FICHIER) -->
-          <button *ngIf="project.statut === 'TERMINE' && (project.specificationType === 'LIEN_APPLICATION' || project.specificationType === 'CODE_FICHIER')" class="btn btn-sm btn-info ms-1" (click)="openWebTestingDashboard(project)"
+          <button *ngIf="project.statut === 'TERMINE' && (project.specificationType === 'LIEN_APPLICATION' || project.specificationType === 'CODE_FICHIER')" class="btn btn-sm btn-outline-info ms-1" (click)="openWebTestingDashboard(project)"
             title="Ouvrir le tableau de bord des tests">
             <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
           </button>
@@ -220,7 +220,8 @@
 
 <!-- MODALE DES DÉTAILS DU PROJET -->
 <div class="project-details-overlay" *ngIf="selectedProjectForDetails" (click)="closeProjectDetailsModal()">
-  <div class="project-details-modal" (click)="$event.stopPropagation()">
+  <div class="project-details-modal" (click)="$event.stopPropagation()" 
+    [ngClass]="'theme-' + selectedProjectForDetails.specificationType.toLowerCase().replace('_', '-')">
     <!-- En-tête avec statut -->
     <div class="details-header" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
       <span class="status-badge" [ngClass]="'status-' + selectedProjectForDetails.statut.toLowerCase()">
@@ -330,12 +331,12 @@
       <div class="action-buttons">
        
         
-        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && selectedProjectForDetails.specificationType !== 'CODE_FICHIER' && selectedProjectForDetails.specificationType !== 'LIEN_APPLICATION'" class="btn btn-secondary" 
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && selectedProjectForDetails.specificationType !== 'CODE_FICHIER' && selectedProjectForDetails.specificationType !== 'LIEN_APPLICATION'" class="btn btn-outline-info" 
           (click)="viewScenarios(selectedProjectForDetails); closeProjectDetailsModal()">
           <i class="bi bi-eye me-1"></i>Voir scénarios
         </button>
         
-        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && (selectedProjectForDetails.specificationType === 'LIEN_APPLICATION' || selectedProjectForDetails.specificationType === 'CODE_FICHIER')" class="btn btn-info ms-2" 
+        <button *ngIf="selectedProjectForDetails.statut === 'TERMINE' && (selectedProjectForDetails.specificationType === 'LIEN_APPLICATION' || selectedProjectForDetails.specificationType === 'CODE_FICHIER')" class="btn btn-outline-info ms-2" 
           (click)="openWebTestingDashboard(selectedProjectForDetails); closeProjectDetailsModal()">
           <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
         </button>

@@ -21,6 +21,7 @@ import { ForgotPasswordVerificationComponent } from './dashboard/pages/forgot-pa
 import { ResetPasswordComponent } from './dashboard/pages/reset-password/reset-password.component';
 import { DashboardAdminComponent } from './dashboard-Admin/dashboard-admin.component';
 import { ProfilePageComponent } from './dashboard-Admin/pages/profile-page.component';
+import { UserProfileComponent } from './dashboard/pages/profile/user-profile.component';
 
 @NgModule({
   declarations: [
@@ -38,6 +39,7 @@ import { ProfilePageComponent } from './dashboard-Admin/pages/profile-page.compo
     ForgotPasswordComponent,
     ForgotPasswordVerificationComponent,
     ResetPasswordComponent
+    ,UserProfileComponent
   ],
   imports: [
     BrowserModule,
