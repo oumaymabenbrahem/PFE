@@ -18,7 +18,6 @@
           </div>
 
           <div class="profile-right">
-            <button class="btn btn-outline small">Modifier</button>
           </div>
         </div>
       </div>
@@ -38,7 +37,7 @@
 
     <div class="profile-card details-card">
       <div class="card-header">
-        <div class="icon-box">i</div>
+        <div class="icon-box"><i class="bi bi-info-circle-fill"></i></div>
         <h3>Informations personnelles</h3>
       </div>
 
@@ -47,7 +46,7 @@
           <div class="field">
             <label>NOM</label>
             <div class="input-icon">
-              <span class="icon">👤</span>
+              <span class="icon"><i class="bi bi-person-fill"></i></span>
               <input [value]="user?.nom" readonly />
             </div>
           </div>
@@ -55,7 +54,7 @@
           <div class="field">
             <label>ADRESSE EMAIL</label>
             <div class="input-icon">
-              <span class="icon">✉️</span>
+              <span class="icon"><i class="bi bi-envelope-fill"></i></span>
               <input [value]="user?.email" readonly />
             </div>
           </div>
@@ -65,28 +64,27 @@
           <div class="field">
             <label>ORGANISATION</label>
             <div class="input-icon">
-              <span class="icon">🏢</span>
-              <input placeholder="TEST2i" />
+              <span class="icon"><i class="bi bi-building"></i></span>
+              <input [value]="'TEST2i'" readonly />
             </div>
           </div>
         </div>
 
         <div class="form-actions">
-          <button type="button" class="btn">Annuler</button>
-          <button type="button" class="btn btn-primary">Mettre à jour le profil</button>
+          <button type="button" class="btn btn-primary" (click)="openUpdateProfileModal()">Mettre à jour le profil</button>
         </div>
       </form>
     </div>
 
     <div class="profile-card security-card">
       <div class="card-header">
-        <div class="icon-box">🔒</div>
+        <div class="icon-box"><i class="bi bi-lock-fill"></i></div>
         <h3>Sécurité & Accès</h3>
       </div>
 
       <div class="security-list">
         <div class="security-item">
-          <div class="left"><span class="item-icon">🔑</span></div>
+          <div class="left"><span class="item-icon"><i class="bi bi-key-fill"></i></span></div>
           <div class="center">
             <div class="title">Mot de passe</div>
            
@@ -98,12 +96,81 @@
         
 
         <div class="security-item">
-          <div class="left"><span class="item-icon">❗</span></div>
+          <div class="left"><span class="item-icon"><i class="bi bi-exclamation-circle-fill"></i></span></div>
           <div class="center">
             <div class="title">Supprimer le compte</div>
           </div>
-          <div class="right"><button class="btn btn-outline danger small">Supprimer</button></div>
+          <div class="right"><button class="btn btn-outline danger small" (click)="openDeleteConfirmModal()">Supprimer</button></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="update-modal-overlay" *ngIf="showUpdateModal">
+    <div class="update-modal" (click)="$event.stopPropagation()">
+      <div class="update-modal-header">
+        <h3>Mettre à jour le profil</h3>
+        <button class="close-btn" type="button" (click)="closeUpdateProfileModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <div class="update-steps">
+        <div class="step completed">1</div>
+        <div class="step-divider"></div>
+        <div class="step active">2</div>
+        <div class="step-divider"></div>
+        <div class="step">3</div>
+      </div>
+
+      <div class="update-step-labels">
+        <span>Informations</span>
+        <span>Confirmation</span>
+        <span>Finalisation</span>
+      </div>
+
+      <div *ngIf="updateProfileStep === 2" class="update-step-content">
+        <div class="field">
+          <label>NOM COMPLET</label>
+          <input type="text" [(ngModel)]="updatedName" />
+        </div>
+        <div class="field">
+          <label>ADRESSE EMAIL</label>
+          <input type="email" [(ngModel)]="updatedEmail" />
+        </div>
+        <div class="field">
+          <label>ORGANISATION</label>
+          <input type="text" [value]="'TEST2i'" readonly />
+        </div>
+      </div>
+
+      <div *ngIf="updateProfileStep === 3" class="update-step-content">
+        <p>Veuillez vérifier vos informations avant de confirmer.</p>
+        <ul>
+          <li><strong>Nom :</strong> {{ updatedName }}</li>
+          <li><strong>Email :</strong> {{ updatedEmail }}</li>
+          <li><strong>Organisation :</strong> {{ updatedOrganization || 'Non spécifiée' }}</li>
+        </ul>
+      </div>
+
+      <div class="update-actions">
+        <button type="button" class="btn btn-outline" (click)="updateProfileStep === 2 ? closeUpdateProfileModal() : goToStep(2)">←  Retour</button>
+        <button *ngIf="updateProfileStep === 2" type="button" class="btn btn-primary" (click)="goToStep(3)">Continuer →</button>
+        <button *ngIf="updateProfileStep === 3" type="button" class="btn btn-primary" (click)="saveProfileChanges()">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmation suppression compte -->
+  <div class="delete-confirm-overlay" *ngIf="showDeleteConfirmModal" (click)="closeDeleteConfirmModal()">
+    <div class="delete-confirm-modal" (click)="$event.stopPropagation()">
+      <div class="delete-icon-container">
+        <div class="delete-icon"><i class="bi bi-trash-fill"></i></div>
+      </div>
+      <h2>Supprimer le compte ?</h2>
+      <p class="delete-description">Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est <strong>irréversible</strong> et toutes vos données seront perdues.</p>
+      
+      <div class="delete-modal-actions">
+        <button type="button" class="btn btn-outline" (click)="closeDeleteConfirmModal()">Annuler</button>
+        <button type="button" class="btn btn-danger" (click)="confirmDeleteAccount()"><i class="bi bi-trash-fill"></i> Oui, supprimer</button>
       </div>
     </div>
   </div>

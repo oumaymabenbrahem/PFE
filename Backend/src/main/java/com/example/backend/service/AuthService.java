@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.dto.AuthResponse;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.RegisterRequest;
+import com.example.backend.dto.UpdateUserRequest;
 import com.example.backend.entity.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.CustomUserDetails;
@@ -181,6 +182,50 @@ public class AuthService {
             log.error("Erreur lors de l'authentification Google: {}", e.getMessage());
             throw new IllegalArgumentException("Erreur lors de l'authentification Google: " + e.getMessage());
         }
+    }
+
+    /**
+     * Met à jour le profil de l'utilisateur connecté
+     */
+    public AuthResponse updateProfile(String currentEmail, UpdateUserRequest request) {
+        if (request.getNom() == null || request.getNom().isBlank()) {
+            throw new IllegalArgumentException("Le nom est requis");
+        }
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new IllegalArgumentException("L'email est requis");
+        }
+
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (!normalizedEmail.equals(user.getEmail()) && userRepository.existsByEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("Cet email est déjà utilisé");
+        }
+
+        user.setNom(request.getNom().trim());
+        user.setEmail(normalizedEmail);
+        userRepository.save(user);
+
+        UserDetails userDetails = new CustomUserDetails(
+                user.getEmail(),
+                user.getPassword(),
+                Arrays.asList(new SimpleGrantedAuthority(user.getRoles().get(0))),
+                user.getId()
+        );
+        String token = jwtUtil.generateToken(userDetails);
+
+        return buildAuthResponse(user, token);
+    }
+
+    /**
+     * Supprime le compte utilisateur et toutes ses données associées
+     */
+    public void deleteAccount(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        userRepository.deleteById(user.getId());
+        log.info("Compte utilisateur supprimé: {}", email);
     }
 
     /**

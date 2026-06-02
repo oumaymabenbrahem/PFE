@@ -128,6 +128,24 @@ export class AuthService {
       );
   }
 
+  public updateProfile(data: { email: string; nom: string }): Observable<AuthResponse> {
+    this.isLoadingSubject.next(true);
+
+    return this.httpClient.put<AuthResponse>(`${this.API_URL}/profile`, data)
+      .pipe(
+        tap(response => this.handleAuthResponse(response)),
+        map(response => {
+          this.isLoadingSubject.next(false);
+          return response;
+        }),
+        catchError(error => {
+          this.isLoadingSubject.next(false);
+          console.error('Erreur lors de la mise à jour du profil:', error);
+          return throwError(() => new Error(error.error?.message || 'Erreur lors de la mise à jour du profil'));
+        })
+      );
+  }
+
   /**
    * Authentifie un utilisateur via GitHub OAuth2
    * @param code - Code d'autorisation GitHub obtenu après redirection
@@ -179,6 +197,28 @@ export class AuthService {
 
     // Rediriger vers la page de connexion
     this.router.navigate(['/login']);
+  }
+
+  /**
+   * Met à jour localement l'utilisateur connecté
+   * @param user - Nouvel objet utilisateur
+   */
+  public updateCurrentUser(user: User): void {
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.currentUserSubject.next(user);
+  }
+
+  /**
+   * Supprime le compte utilisateur via l'API backend
+   * @returns Observable contenant la réponse du serveur
+   */
+  public deleteAccount(): Observable<void> {
+    return this.httpClient.delete<void>(`${this.API_URL}/profile`).pipe(
+      catchError(error => {
+        console.error('Erreur lors de la suppression du compte:', error);
+        return throwError(() => new Error(error.error?.message || 'Erreur lors de la suppression du compte'));
+      })
+    );
   }
 
   /**
