@@ -30,25 +30,9 @@ export class DashboardAdminComponent implements OnInit {
   isDarkMode = false;
   isDefaultDashboard = true;
 
-  metrics: MetricCard[] = [
-    { label: 'Customers', value: '3,782', change: '11.01%', trend: 'up', icon: 'bi-people' },
-    { label: 'Orders', value: '5,359', change: '9.05%', trend: 'down', icon: 'bi-box-seam' }
-  ];
+  metrics: MetricCard[] = [];
 
-  monthlySales: MonthlySale[] = [
-    { month: 'Jan', value: 39, count: 0 },
-    { month: 'Feb', value: 94, count: 0 },
-    { month: 'Mar', value: 47, count: 0 },
-    { month: 'Apr', value: 72, count: 0 },
-    { month: 'May', value: 44, count: 0 },
-    { month: 'Jun', value: 46, count: 0 },
-    { month: 'Jul', value: 70, count: 0 },
-    { month: 'Aug', value: 25, count: 0 },
-    { month: 'Sep', value: 51, count: 0 },
-    { month: 'Oct', value: 96, count: 0 },
-    { month: 'Nov', value: 68, count: 0 },
-    { month: 'Dec', value: 26, count: 0 }
-  ];
+  monthlySales: MonthlySale[] = [];
 
   statisticsBars: { label: string, value: number }[] = [];
   topTypes: { label: string, count: number }[] = [];
