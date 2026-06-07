@@ -215,7 +215,7 @@
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 30px;
 }
 
@@ -231,7 +231,10 @@
 
 .metric-card {
   min-height: 206px;
-  padding: 30px;
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .metric-icon {
@@ -255,9 +258,10 @@
 
 .metric-bottom {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 16px;
 }
 
@@ -273,18 +277,97 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: #eafaf2;
-  color: #039855;
-  font-size: 16px;
+  font-size: 13px;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 700;
+  background: #eafaf2; /* Fond vert par défaut (Up) */
+  color: #039855;
 }
 
 .metric-bottom em.down {
-  background: #fff1ed;
+  background: #fff1ed; /* Fond rouge si classe 'down' */
   color: #f04438;
+}
+
+.metric-bottom em.info-badge {
+  background: #f1f5f9; /* Fond gris pour le badge d'info */
+  color: #64748b;
+  border-radius: 8px;
+}
+
+.trend-label {
+  font-size: 11px;
+  color: #98a2b3;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.mini-progress-fill.speed-anim {
+  background: linear-gradient(90deg, #465fff 0%, #00d2ff 100%);
+}
+
+.timer-badge {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.value-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.mini-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #f0f2f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  background: #465fff;
+  border-radius: 3px;
+  transition: width 1s ease-in-out;
+}
+
+.info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:host-context(.dark) .metric-bottom strong {
+  color: #f8fafc;
+}
+
+:host-context(.dark) .info-badge {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+:host-context(.dark) .mini-progress-track {
+  background: #334155;
+}
+
+.coverage-hint {
+  margin: 15px 0 0;
+  font-size: 12px;
+  color: #98a2b3;
+  font-style: italic;
+  text-align: center;
 }
 
 .panel {
@@ -606,18 +689,239 @@
   bottom: 0;
 }
 
+.performance-report-card {
+  margin-bottom: 30px;
+  padding: 30px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  border: 1px solid #dfe5ee;
+  box-shadow: 0 10px 40px rgba(70, 95, 255, 0.05);
+}
+
+.metric-bottom {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.report-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #0f1f3d;
+}
+
+.badge {
+  padding: 4px 10px;
+  background: #ecf3ff;
+  color: #465fff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 25px;
+}
+
+.report-item {
+  padding: 20px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f0f2f6;
+}
+
+.report-item h3 {
+  margin: 0 0 15px 0;
+  font-size: 15px;
+  color: #53627c;
+  font-weight: 600;
+}
+
+/* 1. Evolution Mini Chart Improved */
+.chart-container {
+  display: flex;
+  gap: 15px;
+  height: 100px;
+  margin-bottom: 25px;
+}
+
+.y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 25px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  min-width: 30px;
+}
+
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: 1;
+  border-bottom: 1px solid #f0f2f6;
+  padding-bottom: 5px;
+}
+
+.mini-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.mini-bar {
+  width: 100%;
+  max-width: 30px;
+  background: linear-gradient(180deg, #465fff 0%, #7a5af8 100%);
+  border-radius: 6px 6px 0 0;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.mini-bar:hover {
+  filter: brightness(1.1);
+  transform: scaleY(1.05);
+}
+
+.bar-x-label {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #53627c;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f1f3d;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  visibility: hidden;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.mini-bar:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* 2. Ratio Bar */
+.ratio-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.ratio-fill.success { background: #039855; }
+.ratio-fill.failure { background: #f04438; }
+
+.ratio-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.success-label { color: #039855; }
+.failure-label { color: #f04438; }
+
+/* 3. Top List */
+.top-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.top-list li {
+  display: flex;
+  align-self: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.rank {
+  color: #465fff;
+  font-weight: 800;
+}
+
+.label {
+  flex: 1;
+  color: #0f1f3d;
+  font-weight: 500;
+}
+
+.count {
+  color: #98a2b3;
+}
+
+/* Dark Mode support */
+:host-context(.dark) .performance-report-card {
+  background: linear-gradient(135deg, #111827 0%, #1a2333 100%);
+  border-color: #1e293b;
+}
+
+:host-context(.dark) .report-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:host-context(.dark) .report-header h2,
+:host-context(.dark) .label {
+  color: #f8fafc;
+}
+
 .stats-bars {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: end;
-  gap: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 10px;
 }
 
-.stats-bars span {
+.stat-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  width: 40px;
+}
+
+.bar-fill {
+  width: 100%;
   border-radius: 8px 8px 0 0;
   background: linear-gradient(180deg, #5268ff 0%, #4157f4 100%);
+  transition: height 0.3s ease;
+}
+
+.stat-bar-container .bar-label {
+  margin-top: 8px;
+  color: #53627c;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transform: translateY(20px);
 }
 
 :host-context(.dark) {
@@ -657,7 +961,10 @@
 :host-context(.dark) .target-summary span,
 :host-context(.dark) .statistics-header p,
 :host-context(.dark) .tabs button,
-:host-context(.dark) .date-range {
+:host-context(.dark) .date-range,
+:host-context(.dark) .bar-label,
+:host-context(.dark) .y-axis,
+:host-context(.dark) .bar-x-label {
   color: #94a3b8;
 }
 
@@ -698,9 +1005,10 @@
 
 :host-context(.dark) .stats-grid,
 :host-context(.dark) .stats-grid > span,
-:host-context(.dark) .target-summary div {
+:host-context(.dark) .target-summary div,
+:host-context(.dark) .mini-chart {
   border-color: #1e293b;
-  background-color: #1e293b;
+  background-color: transparent;
 }
 
 :host-context(.dark) .gauge-track {

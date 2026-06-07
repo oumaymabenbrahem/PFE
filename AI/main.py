@@ -586,6 +586,9 @@ import traceback
 import time
 
 try:
+    # === SELF-HEALING (auto-integre) : active le self-healing dans le script genere ===
+    from self_healing_driver import enable_self_healing
+    enable_self_healing(threshold=0.55)
 {chr(10).join(['    ' + line for line in request.script_code.split(chr(10))])}
     print("SUCCESS: Le script s'est exécuté sans erreur.")
 except Exception as e:

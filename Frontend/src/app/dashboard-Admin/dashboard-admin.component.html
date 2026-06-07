@@ -52,22 +52,38 @@
                   <i [class]="'bi ' + (metric.trend === 'down' ? 'bi-arrow-down' : 'bi-arrow-up')"></i>
                   {{ metric.change }}
                 </em>
+                <span class="trend-label">vs mois dernier</span>
+              </div>
+            </article>
+            <article class="metric-card execution-time-card">
+              <div class="metric-icon"><i class="bi bi-clock-history"></i></div>
+              <span>Temps Moyen d'Exécution</span>
+              <div class="metric-bottom">
+                <div class="value-group">
+                  <strong>{{ (avgExecutionTime || 0) | number:'1.1-1' }}s</strong>
+                  <div class="mini-progress-track">
+                    <div class="mini-progress-fill speed-anim" [style.width.%]="calculateSpeedScore(avgExecutionTime)"></div>
+                  </div>
+                </div>
+                <em class="info-badge timer-badge">
+                  <i class="bi bi-lightning-charge"></i>
+                  <span>{{ successFailureStats.total }}/{{ fullStats?.totalTests }} exécutions</span>
+                </em>
               </div>
             </article>
           </section>
 
           <article class="panel sales-panel">
             <div class="panel-title">
-              <h2>Monthly Sales</h2>
-              <button type="button" aria-label="Options monthly sales"><i class="bi bi-three-dots-vertical"></i></button>
+              <h2>Activité de Génération</h2>
             </div>
 
             <div class="sales-chart" aria-label="Monthly sales chart">
               <div class="chart-axis">
-                <span>400</span>
-                <span>300</span>
-                <span>200</span>
-                <span>100</span>
+                <span>{{ maxActivity }}</span>
+                <span></span>
+                <span></span>
+                <span></span>
                 <span>0</span>
               </div>
               <div class="chart-body">
@@ -77,7 +93,7 @@
                 <span class="grid-line"></span>
                 <div class="bars-row">
                   <div class="bar-item" *ngFor="let sale of monthlySales">
-                    <span class="bar-value" [style.height.%]="sale.value"></span>
+                    <span class="bar-value" [style.height.%]="sale.value" [attr.title]="sale.count + ' tests'"></span>
                     <span class="bar-label">{{ sale.month }}</span>
                   </div>
                 </div>
@@ -89,67 +105,123 @@
         <aside class="target-card">
           <div class="panel-title">
             <div>
-              <h2>Monthly Target</h2>
-              <p>Target you've set for each month</p>
+              <h2>Taux de Succès</h2>
+              <p>Performance globale des exécutions</p>
             </div>
-            <button type="button" aria-label="Options monthly target"><i class="bi bi-three-dots-vertical"></i></button>
           </div>
 
-          <div class="target-gauge" aria-label="Monthly target 75.55 percent">
+          <div class="target-gauge" [attr.aria-label]="'Taux de succès ' + (successRate | number:'1.0-2') + ' percent'">
             <svg viewBox="0 0 220 122" aria-hidden="true">
               <path d="M20 100 A90 90 0 0 1 200 100" pathLength="100" class="gauge-track"></path>
-              <path d="M20 100 A90 90 0 0 1 200 100" pathLength="100" class="gauge-progress"></path>
+              <path d="M20 100 A90 90 0 0 1 200 100" pathLength="100" class="gauge-progress" [style.stroke-dashoffset]="100 - successRate"></path>
             </svg>
             <div class="gauge-value">
-              <strong>75.55%</strong>
-              <span>+10%</span>
+              <strong>{{ successRate | number:'1.0-2' }}%</strong>
+              <span>Stable</span>
             </div>
           </div>
 
-          <p class="target-copy">You earn $3287 today, it's higher than last month. Keep up your good work!</p>
+          <p class="target-copy">Votre taux de succès est basé sur toutes les exécutions passées. Continuez ainsi !</p>
 
           <div class="target-summary">
             <div>
-              <span>Target</span>
-              <strong>$20K <i class="bi bi-arrow-down down"></i></strong>
+              <span>Utilisateurs</span>
+              <strong>{{ totalUsers }} <i class="bi bi-people up"></i></strong>
             </div>
             <div>
-              <span>Revenue</span>
-              <strong>$20K <i class="bi bi-arrow-up up"></i></strong>
+              <span>Scripts</span>
+              <strong>{{ metrics[0].value }} <i class="bi bi-file-code up"></i></strong>
             </div>
             <div>
-              <span>Today</span>
-              <strong>$20K <i class="bi bi-arrow-up up"></i></strong>
+              <span>Projets</span>
+              <strong>{{ metrics[1].value }} <i class="bi bi-folder up"></i></strong>
             </div>
           </div>
         </aside>
       </section>
 
+      <section class="performance-report-card">
+        <div class="report-header">
+          <h2>Rapport de Santé IA</h2>
+          <span class="badge">Live Data</span>
+        </div>
+
+        <div class="report-grid">
+          <!-- 1. Evolution dans le temps -->
+          <div class="report-item evolution">
+            <h3>Évolution Mensuelle</h3>
+            <div class="chart-container">
+              <div class="y-axis">
+                <span>{{ maxActivity }}</span>
+                <span>0</span>
+              </div>
+              <div class="mini-chart">
+                <div class="mini-bar-wrapper" *ngFor="let sale of monthlySales">
+                  <div class="mini-bar" [style.height.%]="sale.value">
+                    <span class="tooltip">{{ sale.month }}: {{ sale.count }} tests</span>
+                  </div>
+                  <span class="bar-x-label">{{ sale.month }}</span>
+                </div>
+              </div>
+            </div>
+            <p>Progression de la génération automatisée</p>
+          </div>
+
+          <!-- 2. Reussite vs Echec -->
+          <div class="report-item status-ratio">
+            <h3>Succès vs Échecs</h3>
+            <div class="ratio-bar">
+              <div class="ratio-fill success" [style.width.%]="(successFailureStats.passed / successFailureStats.total) * 100"></div>
+              <div class="ratio-fill failure" [style.width.%]="(successFailureStats.failed / successFailureStats.total) * 100"></div>
+            </div>
+            <div class="ratio-labels">
+              <span class="success-label">{{ successFailureStats.passed }} Succès</span>
+              <span class="failure-label">{{ successFailureStats.failed }} Échecs</span>
+            </div>
+            <p class="coverage-hint">Basé sur {{ successFailureStats.total }} exécutions Selenium réelles.</p>
+          </div>
+
+          <!-- 3. Top Types -->
+          <div class="report-item top-types">
+            <h3>Top des Types</h3>
+            <ul class="top-list">
+              <li *ngFor="let type of topTypes; let i = index">
+                <span class="rank">#{{ i + 1 }}</span>
+                <span class="label">{{ type.label }}</span>
+                <span class="count">{{ type.count }} tests</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section class="statistics-card" aria-label="Statistics">
         <div class="statistics-header">
           <div>
-            <h2>Statistics</h2>
-            <p>Target you've set for each month</p>
+            <h2>Répartition des Tests</h2>
+            <p>Distribution par type de scénario</p>
           </div>
 
-          <div class="statistics-actions">
+            <div class="statistics-actions">
             <div class="tabs" aria-label="Statistics tabs">
-              <button type="button" class="active">Overview</button>
-              <button type="button">Sales</button>
-              <button type="button">Revenue</button>
+              <button type="button" [class.active]="selectedTab === 'type'" (click)="switchTab('type')">Type</button>
+              <button type="button" [class.active]="selectedTab === 'priority'" (click)="switchTab('priority')">Priorité</button>
+              <button type="button" [class.active]="selectedTab === 'status'" (click)="switchTab('status')">Statut</button>
             </div>
-            <button type="button" class="date-range"><i class="bi bi-calendar3"></i> May 11 - May 17</button>
           </div>
         </div>
 
         <div class="statistics-chart" aria-label="Statistics chart">
-          <span class="stats-axis">250</span>
+          <span class="stats-axis">{{ maxDistribution }}</span>
           <div class="stats-grid">
             <span></span>
             <span></span>
             <span></span>
             <div class="stats-bars">
-              <span *ngFor="let value of statisticsBars" [style.height.%]="value"></span>
+              <div class="stat-bar-container" *ngFor="let item of statisticsBars">
+                <span class="bar-fill" [style.height.%]="item.value"></span>
+                <span class="bar-label">{{ item.label }}</span>
+              </div>
             </div>
           </div>
         </div>
