@@ -44,9 +44,10 @@ img {
 
 // Home key features section
 .home-key-features {
-  --kf-bg: linear-gradient(135deg, #f2f7ff 0%, #fff7ec 48%, #eefdf6 100%);
+  /* neutral gray backgrounds instead of colored gradients */
+  --kf-bg: #f3f4f6;
   --kf-panel: rgba(255, 255, 255, 0.88);
-  --kf-border: #d9e4f2;
+  --kf-border: #e6e7eb;
   --kf-text: #1f2937;
   --kf-muted: #5f6f85;
   --kf-primary: #1169d9;
@@ -119,7 +120,7 @@ img {
       height: 50px;
       margin: 0 auto 0.85rem;
       border-radius: 50%;
-      background: #e7f0ff;
+      background: #e5e7eb;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -149,12 +150,12 @@ img {
     }
 
     &.active {
-      border-color: #5ea4ff;
-      background: linear-gradient(180deg, #ffffff 0%, #eef5ff 100%);
-      box-shadow: 0 14px 30px rgba(25, 95, 175, 0.15);
+      border-color: #d1d5db;
+      background: #f9fafb;
+      box-shadow: 0 14px 30px rgba(25, 95, 175, 0.08);
 
       .icon-wrap {
-        background: linear-gradient(135deg, #0f6de3 0%, #1a8cff 100%);
+        background: #6b7280;
       }
 
       svg {
@@ -180,7 +181,8 @@ img {
     h3 {
       font-size: 1.55rem;
       font-weight: 700;
-      color: var(--kf-text);
+      /* titre en rouge demandé */
+      color: #d64545;
       margin-bottom: 0.55rem;
     }
 
@@ -202,9 +204,9 @@ img {
     span {
       display: inline-flex;
       align-items: center;
-      border: 1px solid #bfd4ec;
-      color: #3f556f;
-      background: #f6faff;
+      border: 1px solid #d1d5db;
+      color: #4b5563;
+      background: #f3f4f6;
       border-radius: 999px;
       font-size: 0.82rem;
       font-weight: 600;
@@ -215,21 +217,21 @@ img {
   .focus-stat {
     min-width: 165px;
     text-align: center;
-    background: linear-gradient(160deg, #fff2e0 0%, #ffe4bc 100%);
+    background: #f3f4f6;
     border-radius: 14px;
-    border: 1px solid #ffd6a0;
+    border: 1px solid #e5e7eb;
     padding: 1rem;
 
     strong {
       display: block;
-      color: #a84d00;
+      color: #374151;
       font-size: 2.2rem;
       line-height: 1;
       margin-bottom: 0.2rem;
     }
 
     span {
-      color: #8a5a27;
+      color: #6b7280;
       font-size: 0.92rem;
       font-weight: 600;
     }

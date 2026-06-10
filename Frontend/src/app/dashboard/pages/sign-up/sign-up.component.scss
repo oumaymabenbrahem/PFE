@@ -4,7 +4,8 @@
     display: block;
     width: 100%;
     min-height: 100vh;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #f0f4f8 100%);
+    /* page background set to plain white per request */
+    background: #ffffff;
     position: relative;
     overflow: hidden;
 }
@@ -24,6 +25,8 @@
     height: 100%;
     z-index: 0;
     pointer-events: none;
+    /* hide decorative background blobs */
+    display: none;
 }
 
 .floating-shapes {

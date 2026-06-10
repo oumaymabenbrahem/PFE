@@ -5,10 +5,8 @@
 .scripts-page {
 	min-height: calc(100vh - 110px);
 	padding: 7rem 1rem 2rem;
-	background:
-		radial-gradient(circle at 0% 0%, rgba(80, 115, 255, 0.15), transparent 28%),
-		radial-gradient(circle at 100% 100%, rgba(46, 198, 172, 0.12), transparent 30%),
-		#eff3f9;
+	/* plain white background */
+	background: #ffffff;
 }
 
 .scripts-shell {
@@ -142,14 +140,16 @@ textarea {
 	width: 100%;
 	flex: 1;
 	min-width: 0;
+	box-sizing: border-box;
 	border: none;
 	outline: none;
 	resize: none;
-	overflow-x: auto;
+	/* Prevent horizontal scrolling and enable word wrap */
+	overflow-x: hidden;
 	overflow-y: auto;
-	white-space: pre;
-	overflow-wrap: normal;
-	word-break: normal;
+	white-space: pre-wrap; /* preserve newlines but wrap long lines */
+	overflow-wrap: break-word;
+	word-break: break-word;
 	scrollbar-gutter: stable;
 	background: #edf0f5;
 	color: #1e2a44;
@@ -157,6 +157,7 @@ textarea {
 	font-size: 1rem;
 	line-height: 1.6;
 	padding: 1rem;
+	border-radius: 6px; /* subtle rounding for readability */
 }
 
 .panel-preview pre {

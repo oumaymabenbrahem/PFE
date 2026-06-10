@@ -463,9 +463,10 @@
             <tr *ngFor="let scenario of generatedScenarios">
               <td>
                 <span class="badge" [ngClass]="{
-                     'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
+                     'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || scenario.type === 'Validation',
                      'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
                      'bg-danger': scenario.type === 'Négatif',
+                     'bg-info': scenario.type === 'Navigation',
                      'bg-primary': scenario.type === 'Performance'
                    }">
                   {{ scenario.type || 'Fonctionnel' }}
@@ -685,13 +686,13 @@
 
       <div class="fsd-layout" [class.without-behaviors]="activeFileSpecTab !== 'analyser'">
         <aside class="fsd-sidebar">
-          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'analyser'" (click)="setFileSpecTab('analyser')">
-            <i class="bi bi-search side-icon" aria-hidden="true"></i>
-            <span>Analyser</span>
-          </button>
           <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'generer'" (click)="setFileSpecTab('generer')">
             <i class="bi bi-file-earmark-plus side-icon" aria-hidden="true"></i>
             <span>Générer</span>
+          </button>
+          <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'analyser'" (click)="setFileSpecTab('analyser')">
+            <i class="bi bi-search side-icon" aria-hidden="true"></i>
+            <span>Analyser</span>
           </button>
           <button type="button" class="side-item" [class.active]="activeFileSpecTab === 'tester'" (click)="setFileSpecTab('tester')">
             <i class="bi bi-play-circle side-icon" aria-hidden="true"></i>
@@ -829,7 +830,7 @@
             </div>
             <div *ngIf="generatedScenarios && generatedScenarios.length > 0" class="result-view mt-3">
               <div class="table-responsive gherkin-table-container">
-                <table class="table table-dark gherkin-table align-middle m-0" style="width: 100%;">
+                <table class="table gherkin-table align-middle m-0" style="width: 100%;">
                   <thead>
                     <tr>
                       <th scope="col" style="width: 25%">Type / Titre</th>
@@ -840,9 +841,10 @@
                     <tr *ngFor="let scenario of generatedScenarios">
                       <td>
                         <span class="badge" [ngClass]="{
-                             'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle',
+                             'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || scenario.type === 'Validation',
                              'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
                              'bg-danger': scenario.type === 'Négatif',
+                             'bg-info': scenario.type === 'Navigation',
                              'bg-primary': scenario.type === 'Performance'
                            }">
                           {{ scenario.type || 'Fonctionnel' }}

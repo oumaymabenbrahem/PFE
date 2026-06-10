@@ -420,18 +420,28 @@
   }
 
   &.bg-info {
-    background-color: #a0d4ff !important; // Bleu clair
-    color: #000;
+    background-color: #e0f7fa !important; // Bleu pastel très doux
+    color: #006064 !important; // Texte bleu foncé pour le contraste
   }
 
   &.bg-warning {
-    background-color: #fff9c4 !important; // Jaune clair
-    color: #000;
+    background-color: #fff9c4 !important; // Jaune pastel
+    color: #827717 !important; // Texte olive/doré foncé
   }
 
   &.bg-success {
-    background-color: #5b6d5b !important; // Vert doux
-    color: #fff;
+    background-color: #e8f5e9 !important; // Vert pastel
+    color: #1b5e20 !important; // Texte vert foncé
+  }
+
+  &.bg-primary {
+    background-color: #e3f2fd !important; // Indigo/Bleu très clair
+    color: #1a237e !important; // Texte indigo foncé
+  }
+
+  &.bg-danger {
+    background-color: #ffebee !important; // Rouge pastel
+    color: #b71c1c !important; // Texte rouge foncé
   }
 }
 
@@ -1040,7 +1050,7 @@
         border-radius: 6px;
         border: 1px solid #2f334d;
         font-family: 'Fira Code', 'Consolas', monospace;
-        font-size: 0.85rem;
+        font-size: 0.78rem;
         color: #7aa2f7; // Bleu doux pour le code
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -1068,7 +1078,71 @@
   }
 }
 
+
+// Theme Clair pour le dashboard "Fichier du projet" (Remplacement du Noir par Crème / Ivoire)
+.file-spec-dashboard {
+  .gherkin-table {
+    --bs-table-color: #2c3e50 !important;
+    background-color: #fffdf5 !important;
+    
+    th {
+      background-color: #f1f1e6 !important; // Crème plus foncé pour l'en-tête
+      color: #4a4a4a !important;
+      border-bottom: 2px solid #d8d8d0 !important;
+    }
+    
+    td {
+      border-bottom: 2px solid #d8d8d0 !important; // Bordure plus épaisse pour séparer les scénarios
+      padding-top: 24px !important;
+      padding-bottom: 24px !important;
+      color: #2c3e50 !important;
+    }
+
+    tr:last-child td {
+      border-bottom: none !important;
+    }
+
+    tr:hover td {
+      background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+
+    .title-scenario {
+      color: #2c3e50 !important;
+    }
+
+    .scenario-desc {
+      color: #5d6d7e !important;
+    }
+    
+    .gherkin-code {
+      background-color: #fdfbf7 !important; // Crème très doux / Ivoire
+      color: #2c3e50 !important; // Texte sombre
+      border: 1px solid #dcd9c6 !important; // Bordure légèrement plus foncée
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03) !important; // Légère ombre pour détacher le bloc
+      font-size: 0.78rem !important;
+      
+      code {
+        color: #2c3e50 !important;
+      }
+    }
+  }
+  
+  .gherkin-table-container {
+    border: 1px solid #d8d8d0 !important;
+    background-color: #fffdf5 !important;
+    
+    &::-webkit-scrollbar-track {
+      background: #f1f1e6 !important;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #c8c8b8 !important;
+    }
+  }
+}
+
 // ==========================================
+
 // MODALE DÉTAILS DU PROJET
 // ==========================================
 

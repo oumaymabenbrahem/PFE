@@ -21,6 +21,7 @@ from prepare_Elements_Detected import FeatureExtractor, filter_noisy_elements
 from gherkin_executor import GherkinExecutor, ScenarioResult
 from report_generator import generate_rich_report
 from html_analyzer import analyze_html
+from self_healing_driver import get_healing_stats, get_healing_log
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -2410,6 +2411,10 @@ async def execute_scenarios(request: ExecuteScenarioRequest):
         report = generate_rich_report(scenarios_results, project_metadata)
         log_step("✓ Report generated successfully")
 
+        # Collect self-healing statistics for this execution
+        healing_stats = get_healing_stats()
+        healing_log = get_healing_log()
+
         return {
             "status": "COMPLETED",
             "summary": {
@@ -2424,7 +2429,11 @@ async def execute_scenarios(request: ExecuteScenarioRequest):
             "report_base64_pdf": report["pdf_base64"],
             "report_summary": report["summary"],
             "pdf_generation_mode": report.get("pdf_generation_mode", "unknown"),
-            "execution_logs": execution_logs  # Send logs to frontend
+            "execution_logs": execution_logs,
+            "self_healing": {
+                "stats": healing_stats,
+                "events": healing_log[-20:]  # Last 20 healing events
+            }
         }
 
     except Exception as e:
@@ -2985,6 +2994,25 @@ async def run_file_selenium(request: RunFileSeleniumRequest):
                 os.remove(html_filename)
             except:
                 pass
+
+
+# ================== SELF-HEALING MONITORING ENDPOINT ==================
+
+from fastapi.responses import JSONResponse
+
+@app.get("/api/self-healing-stats")
+async def self_healing_stats():
+    """
+    Returns self-healing agent statistics and recent healing events.
+    Useful for monitoring and debugging selector healing.
+    """
+    stats = get_healing_stats()
+    log = get_healing_log()
+    return JSONResponse(content={
+        "stats": stats,
+        "recent_events": log[-50:],  # Last 50 healing events
+        "total_events": len(log),
+    })
 
 
 if __name__ == "__main__":

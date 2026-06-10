@@ -67,7 +67,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   failedMetrics: string = '-';
   pipelineInterval: any;
   executionPdfReport?: string;
-  activeFileSpecTab: 'analyser' | 'generer' | 'tester' | 'rapport' = 'analyser';
+  activeFileSpecTab: 'analyser' | 'generer' | 'tester' | 'rapport' = 'generer';
   
   // File analysis (BeautifulSoup)
   fileAnalysisFields: any[] = [];
@@ -723,7 +723,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.showWebTestingDashboard = false;
     this.webTestingProject = null;
     this.generatedScenarios = null; // Réinitialiser les scénarios affichés dans le dashboard
-    this.activeFileSpecTab = 'analyser'; // Réinitialiser à l'onglet "Analyser"
+    this.activeFileSpecTab = 'generer'; // Réinitialiser à l'onglet "Générer"
     // Reset Tester tab state
     this.generatedSeleniumScript = '';
     this.isGeneratingScript = false;
