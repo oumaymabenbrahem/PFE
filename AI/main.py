@@ -22,6 +22,8 @@ from gherkin_executor import GherkinExecutor, ScenarioResult
 from report_generator import generate_rich_report
 from html_analyzer import analyze_html
 from self_healing_driver import get_healing_stats, get_healing_log
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -79,6 +81,27 @@ except Exception as e:
     print(f"⚠️ CodeT5 local non trouvé, entraînez le modèle d'abord : {e}")
     codet5_model = None
     codet5_tokenizer = None
+
+# 3. KNN Logic for Form Test Values
+FORM_TEST_DATA_PATH = Path(__file__).resolve().parent / "form_test_data.csv"
+knn_vectorizer = TfidfVectorizer()
+knn_model = NearestNeighbors(n_neighbors=1, metric='cosine')
+form_test_df = None
+
+try:
+    if FORM_TEST_DATA_PATH.exists():
+        form_test_df = pd.read_csv(FORM_TEST_DATA_PATH)
+        # Handle cases where CSV might be empty or malformed
+        if not form_test_df.empty and 'description' in form_test_df.columns:
+            descriptions = form_test_df['description'].fillna('').tolist()
+            X_knn = knn_vectorizer.fit_transform(descriptions)
+            knn_model.fit(X_knn)
+            print(f"✅ Modèle KNN chargé avec {len(descriptions)} entrées de test depuis {FORM_TEST_DATA_PATH.name}")
+    else:
+        print(f"⚠️ {FORM_TEST_DATA_PATH} non trouvé. Le fallback heuristique sera utilisé.")
+except Exception as e:
+    print(f"⚠️ Erreur lors du chargement du dataset KNN : {e}")
+    form_test_df = None
 
 # Les classes Pydantic
 class ElementData(BaseModel):
@@ -2221,20 +2244,45 @@ def _element_display_name(el: Dict) -> str:
 
 
 def _test_value_for_field(el: Dict) -> str:
+    # 1. Fallback heuristique si le modèle KNN n'est pas prêt
     field_type = (el.get("type") or "").lower()
-    name = f"{el.get('name', '')} {el.get('id', '')} {el.get('placeholder', '')}".lower()
-    if field_type == "email" or "email" in name:
+    name_attr = (el.get("name") or "").lower()
+    id_attr = (el.get("id") or "").lower()
+    placeholder = (el.get("placeholder") or "").lower()
+    
+    # Construction de la requête sémantique
+    query = f"{field_type} {name_attr} {id_attr} {placeholder}".strip().lower()
+    
+    # 2. Utilisation du KNN
+    if form_test_df is not None and not form_test_df.empty:
+        try:
+            # Vectorisation de la requête utilisateur
+            query_vec = knn_vectorizer.transform([query])
+            
+            # Recherche de l'entrée la plus proche en utilisant la similarité cosinus
+            distances, indices = knn_model.kneighbors(query_vec)
+            
+            # Seuil de confiance (si la distance est trop grande, on peut douter du match)
+            # Avec cosine metric, distance = 1 - similarity. 
+            # Si distance est proche de 0, c'est très similaire.
+            if distances[0][0] < 0.8: # On accepte si un minimum de ressemblance existe
+                best_match_idx = indices[0][0]
+                return str(form_test_df.iloc[best_match_idx]['test_value'])
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la prédiction KNN : {e}")
+
+    # 3. Fallback Heuristique Classique (si KNN échoue ou n'est pas assez précis)
+    if "email" in query:
         return "qa.user@example.com"
-    if field_type == "password" or "pass" in name:
+    if "password" in query or "pass" in query:
         return "TestPassword123!"
-    if field_type == "number":
+    if field_type == "number" or "age" in query or "quantite" in query:
         return "42"
-    if field_type == "tel" or "phone" in name or "tel" in name:
+    if "tel" in query or "phone" in query:
         return "+21612345678"
-    if field_type == "search" or "search" in name or "query" in name:
+    if "search" in query or "query" in query:
         return "produit test"
-    if field_type == "url":
-        return "https://example.com"
+    
     return "valeur de test automatique"
 
 
@@ -2551,15 +2599,8 @@ async def generate_file_selenium(request: GenerateFileSeleniumRequest):
                 continue
             
             if tag == 'input' and f_type in ('text', 'email', 'password', 'tel', 'number', 'search'):
-                test_value = f_placeholder or f"test_{f_name or f_id}"
-                if f_type == 'email':
-                    test_value = "test@example.com"
-                elif f_type == 'password':
-                    test_value = "TestPassword123!"
-                elif f_type == 'number':
-                    test_value = "42"
-                elif f_type == 'tel':
-                    test_value = "+21612345678"
+                # Utilisation du KNN pour trouver la valeur de test la plus appropriée
+                test_value = _test_value_for_field(field)
                 field_actions.append(f"# Remplir le champ {f_name or f_id} ({f_type})")
                 field_actions.append(f"elem = driver.find_element({locator_type}, '{locator}')")
                 field_actions.append(f"elem.clear()")
@@ -2578,7 +2619,8 @@ async def generate_file_selenium(request: GenerateFileSeleniumRequest):
                 field_actions.append(f"# Remplir le textarea {f_name or f_id}")
                 field_actions.append(f"textarea = driver.find_element({locator_type}, '{locator}')")
                 field_actions.append(f"textarea.clear()")
-                field_actions.append(f"textarea.send_keys('Texte de test automatique')")
+                test_value = _test_value_for_field(field)
+                field_actions.append(f"textarea.send_keys('{test_value}')")
                 field_actions.append("")
             elif tag == 'button' or (tag == 'input' and f_type == 'submit'):
                 field_actions.append(f"# Cliquer sur le bouton {field.get('text', f_name or f_id)}")
@@ -2687,15 +2729,15 @@ def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, An
                 if 'invalide' in name_lower or 'email' in name_lower and 'invalide' in name_lower:
                     test_value = "invalid-email"
                 else:
-                    test_value = "test@example.com"
-            elif f_type == 'password':
-                test_value = "TestPassword123!"
-            elif f_type == 'number':
-                test_value = "42"
-            elif f_type == 'tel':
-                test_value = "+21612345678"
+                    test_value = _test_value_for_field(field)
+            elif f_type in ('password', 'number', 'tel'):
+                # Si c'est un test spécifique "faible" ou "non conforme", on garde les valeurs d'erreur
+                if 'faible' in name_lower or 'non conforme' in name_lower:
+                    test_value = "123" if f_type == 'password' else "0"
+                else:
+                    test_value = _test_value_for_field(field)
             else:
-                test_value = f"test_{f_name or f_id}"
+                test_value = _test_value_for_field(field)
 
             field_actions.append(f"elem = driver.find_element({locator_type}, '{locator}')")
             field_actions.append(f"elem.clear()")

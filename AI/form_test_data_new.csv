@@ -1,0 +1,23 @@
+description,test_value
+"email user_email login identifiant courriel mail username placeholder: votre email",qa.user@example.com
+"password pass pwd secret mot_de_passe mdp pin placeholder: mot de passe",TestPassword123!
+"phone tel mobile telephone phone_number gsm contact placeholder: numéro de téléphone",+21612345678
+"number age quantity montant somme prix price montant_total placeholder: 0",45
+"search query q recherche chercher mot_cle keyword placeholder: rechercher",produit test
+"url link website site internet adresse_url placeholder: https://",https://example.com
+"date birthday anniversaire date_naissance birth_date placeholder: jj/mm/aaaa",2000-01-01
+"address adresse domicile street rue ville city placeholder: adresse complète","123 Rue de la Liberté, Tunis"
+"zip code postal code_postal zip_code placeholder: 1000",1000
+"first_name prenom nominal given_name placeholder: votre prénom",oumayma
+"last_name nom family_name surname placeholder: votre nom",ben brahem
+"full_name nom_complet name placeholder: Nom et Prénom",oumayma ben brahem
+"company entreprise societe raison_sociale placeholder: nom de l'entreprise",ST2i Inc.
+"message comment commentaire description observations placeholder: votre message","Ceci est un message de test automatique pour la validation du formulaire."
+"subject objet sujet titre_message placeholder: sujet","Test de validation automatique"
+"country pays nation placeholder: pays",Tunisie
+"city ville localite placeholder: ville",Tunis
+"job profession occupation titre_poste placeholder: profession",Ingénieur QA
+"gender genre sexe placeholder: genre",Femme
+"id_card cin passport identite placeholder: numéro CIN",12345678
+"website site_pro portfolio placeholder: site web",https://oumayma.dev
+"social linkedln facebook twitter instagram placeholder: profil",https://linkedin.com/in/oumayma

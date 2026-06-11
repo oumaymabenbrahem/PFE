@@ -1,0 +1,55 @@
+description,test_value
+"email user_email login identifiant courriel mail username placeholder: votre email",qa.user@example.com
+"password pass pwd secret mot_de_passe mdp pin placeholder: mot de passe",TestPassword123!
+"phone tel mobile telephone phone_number gsm contact placeholder: numéro de téléphone",+21612345678
+"number age quantity montant somme prix price montant_total placeholder: 0",45
+"search query q recherche chercher mot_cle keyword placeholder: rechercher",produit test
+"url link website site internet adresse_url portfolio placeholder: https://",https://example.com
+"date birthday anniversaire date_naissance birth_date placeholder: jj/mm/aaaa",2000-01-01
+"address adresse domicile street rue ville city placeholder: adresse complète","123 Rue de la Liberté, Tunis"
+"zip code postal code_postal zip_code placeholder: 1000",1000
+"first_name prenom nominal given_name placeholder: votre prénom",oumayma
+"last_name nom family_name surname placeholder: votre nom",ben brahem
+"full_name nom_complet name placeholder: Nom et Prénom",oumayma ben brahem
+"company entreprise societe raison_sociale placeholder: nom de l'entreprise",ST2i Inc.
+"message comment commentaire description observations placeholder: votre message","Ceci est un message de test automatique pour la validation du formulaire."
+"subject objet sujet titre_message placeholder: sujet","Test de validation automatique"
+"country pays nation placeholder: pays",Tunisie
+"city ville localite placeholder: ville",Tunis
+"job profession occupation titre_poste placeholder: profession",Ingénieur QA
+"gender genre sexe placeholder: genre",Femme
+"id_card cin passport identite placeholder: numéro CIN",12345678
+"middle_name second_prenom placeholder: second prénom",Ben
+"title titre civilite placeholder: Mr/Mme",Mme
+"state region province departement gouvernorat placeholder: région",Tunis
+"neighborhood quartier cité placeholder: quartier",Cité El Khadra
+"house_number numero_rue placeholder: n°",42
+"apartment appartement étage floor placeholder: étage",3ème
+"nationality nationalite placeholder: nationalité",Tunisienne
+"marital_status situation_familiale placeholder: marié(e)/célibataire",Célibataire
+"children_count nombre_enfants placeholder: 0",0
+"department service unite placeholder: département",Développement
+"work_email email_pro placeholder: email professionnel",oumayma.work@st2i.com.tn
+"work_phone tel_pro placeholder: téléphone travail",+21671000000
+"industry secteur domaine placeholder: secteur",Informatique
+"iban bank_account rib placeholder: IBAN",TN5912345678901234567890
+"bank_name nom_banque placeholder: banque",BIAT
+"credit_card type_carte placeholder: visa/mastercard",Visa
+"salary salaire revenu placeholder: montant",2500
+"budget placeholder: budget",10000
+"ip_address adresse_ip placeholder: 127.0.0.1",192.168.1.1
+"repo_url github git placeholder: repository",https://github.com/oumayma/pfe-st2i
+"sku reference_produit placeholder: SKU",PROD-999
+"product_name nom_produit placeholder: nom",Ordinateur Portable de Test
+"discount remise reduction placeholder: %",10
+"feedback avis opinion placeholder: votre avis","Excellent service, très satisfait."
+"rating note score placeholder: 1-5",5
+"tags etiquettes mots_cles placeholder: tag1, tag2","test,automation,pfe"
+"priority priorite placeholder: haute/basse",Haute
+"start_date date_debut placeholder: date debut",2024-01-01
+"end_date date_fin placeholder: date fin",2024-12-31
+"tax tva placeholder: tva",19
+"color couleur placeholder: rouge/bleu",Bleu
+"size taille dimension placeholder: L/XL",XL
+"weight poids placeholder: kg",1.5
+"brand marque placeholder: marque",ST2i
