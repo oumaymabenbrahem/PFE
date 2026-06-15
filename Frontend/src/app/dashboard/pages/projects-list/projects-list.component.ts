@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ProjectService } from '../../../core/services/project.service';
-import { ProjectResponse } from '../../../shared/models/project.model';
+import { ProjectRequest, ProjectResponse } from '../../../shared/models/project.model';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -86,6 +86,19 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   fileTestLogs: string = '';
   cachedHtmlContentBase64: string = '';
   showRapportLogs: boolean = false;
+  
+  // Edit Project Modal UI
+  showEditModal: boolean = false;
+  editProjectStep: number = 1;
+  editingProject: ProjectResponse | null = null;
+  updatedProjectData: any = {
+    nom: '',
+    description: '',
+    specificationContenu: '',
+    focusOptionnel: ''
+  };
+  isUpdatingProject: boolean = false;
+  selectedFile: File | null = null;
   
   private readonly executionMetricsStoragePrefix = 'execution_metrics_';
 
@@ -275,7 +288,6 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.isJiraProjectDropdownOpen = false;
     this.pushMessage = '';
     this.pushError = '';
-
     this.jiraService.pushTests(projectKey, this.jiraUserStoryId, this.generatedScenarios)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -323,7 +335,97 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   }
 
   editProject(projectId: string): void {
-    this.router.navigate(['/project-edit', projectId]);
+    const project = this.projects.find(p => p.id === projectId);
+    if (project) {
+      this.openEditProjectModal(project);
+    }
+  }
+
+  openEditProjectModal(project: ProjectResponse): void {
+    this.editingProject = project;
+    this.updatedProjectData = {
+      nom: project.nom,
+      description: project.description || '',
+      specificationContenu: project.specificationContenu || '',
+      focusOptionnel: project.focusOptionnel || ''
+    };
+    this.editProjectStep = 1;
+    this.showEditModal = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeEditProjectModal(): void {
+    this.showEditModal = false;
+    this.editingProject = null;
+    this.editProjectStep = 1;
+    this.selectedFile = null;
+    document.body.style.overflow = '';
+  }
+
+  onFileSelected(event: any): void {
+    if (event.target.files && event.target.files.length > 0) {
+      this.selectedFile = event.target.files[0];
+    }
+  }
+
+  goToEditStep(step: number): void {
+    if (step >= 1 && step <= 3) {
+      this.editProjectStep = step;
+    }
+  }
+
+  saveProjectChanges(): void {
+    if (!this.editingProject) return;
+
+    this.isUpdatingProject = true;
+    
+    // On utilise FormData car on doit pouvoir envoyer un fichier
+    const formData = new FormData();
+    
+    const request = {
+      nom: this.updatedProjectData.nom,
+      description: this.updatedProjectData.description,
+      specificationType: this.editingProject.specificationType,
+      specificationContenu: this.updatedProjectData.specificationContenu,
+      focusOptionnel: this.updatedProjectData.focusOptionnel
+    };
+
+    // Ajout du JSON en tant que Blob
+    formData.append('project', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    
+    if (this.selectedFile) {
+      formData.append('fichier', this.selectedFile);
+    }
+
+    this.projectService.updateProject(this.editingProject.id, formData as any)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (updatedProject) => {
+          this.isUpdatingProject = false;
+          this.successMessage = 'Projet mis à jour avec succès !';
+          
+          const index = this.projects.findIndex(p => p.id === updatedProject.id);
+          if (index !== -1) {
+            this.projects[index] = {
+              ...this.projects[index],
+              nom: updatedProject.nom,
+              description: updatedProject.description,
+              specificationContenu: updatedProject.specificationContenu,
+              focusOptionnel: updatedProject.focusOptionnel,
+              statut: updatedProject.statut
+            };
+          }
+          
+          this.closeEditProjectModal();
+          setTimeout(() => this.successMessage = '', 3000);
+        },
+        error: (err) => {
+          this.isUpdatingProject = false;
+          console.error('Update error:', err);
+          this.errorMessage = 'Erreur lors de la mise à jour : ' + (err.message || 'Problème technique');
+          setTimeout(() => this.errorMessage = '', 5000);
+        }
+      });
   }
 
   deleteProject(projectId: string): void {

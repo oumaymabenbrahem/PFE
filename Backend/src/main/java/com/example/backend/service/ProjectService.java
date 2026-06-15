@@ -220,7 +220,7 @@ public class ProjectService {
     /**
      * Met à jour un projet (seul le propriétaire peut le faire)
      */
-    public ProjectResponse updateProject(UUID id, ProjectRequest request, UUID ownerId) {
+    public ProjectResponse updateProject(UUID id, ProjectRequest request, MultipartFile fichier, UUID ownerId) {
         Project project = projectRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé ou accès refusé"));
 
@@ -229,6 +229,30 @@ public class ProjectService {
         }
         if (request.getDescription() != null) {
             project.setDescription(request.getDescription());
+        }
+        if (request.getSpecificationContenu() != null) {
+            project.setSpecificationContenu(request.getSpecificationContenu());
+        }
+        if (request.getFocusOptionnel() != null) {
+            project.setFocusOptionnel(request.getFocusOptionnel());
+        }
+
+        // Mise à jour du fichier si fourni
+        if (fichier != null && !fichier.isEmpty()) {
+            validateFile(fichier);
+            try {
+                project.setFichierData(fichier.getBytes());
+                project.setFichierNom(fichier.getOriginalFilename());
+                project.setFichierType(fichier.getContentType());
+                project.setFichierTaille(fichier.getSize());
+                // Si c'est un projet CODE_FICHIER, on met à jour aussi la spécificationContenu avec le nom du nouveau fichier
+                if (project.getSpecificationType() == SpecificationType.CODE_FICHIER) {
+                    project.setSpecificationContenu(fichier.getOriginalFilename());
+                }
+            } catch (IOException e) {
+                log.error("Erreur lors de la mise à jour du fichier", e);
+                throw new BadRequestException("Erreur lors de la lecture du fichier");
+            }
         }
 
         Project updatedProject = projectRepository.save(project);

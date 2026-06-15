@@ -1383,3 +1383,139 @@
     </div>
   </div>
 </div>
+
+<!-- MODALE DE MODIFICATION DU PROJET (STEPPER) -->
+<div class="update-modal-overlay" *ngIf="showEditModal" (click)="closeEditProjectModal()">
+  <div class="update-modal" (click)="$event.stopPropagation()">
+    <div class="update-modal-header">
+      <h3>Mettre à jour le projet</h3>
+      <button class="close-btn" type="button" (click)="closeEditProjectModal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Stepper -->
+    <div class="update-steps">
+      <div class="step" [class.completed]="editProjectStep > 1" [class.active]="editProjectStep === 1">1</div>
+      <div class="step-divider" [class.active]="editProjectStep > 1"></div>
+      <div class="step" [class.completed]="editProjectStep > 2" [class.active]="editProjectStep === 2">2</div>
+      <div class="step-divider" [class.active]="editProjectStep > 2"></div>
+      <div class="step" [class.active]="editProjectStep === 3">3</div>
+    </div>
+
+    <div class="update-step-labels">
+      <span>Informations</span>
+      <span>Spécification</span>
+      <span>Finalisation</span>
+    </div>
+
+    <div *ngIf="editProjectStep === 1" class="update-step-content">
+      <div class="field">
+        <label>NOM DU PROJET</label>
+        <input type="text" [(ngModel)]="updatedProjectData.nom" placeholder="Nom du projet" />
+      </div>
+     
+      <div class="info-alert">
+        <i class="bi bi-info-circle me-2"></i>
+       Veuillez trouver les spécifications détaillées à l'étape suivante.
+      </div>
+    </div>
+
+    <!-- Step 2: Spécification (Contenu uniquement) -->
+    <div *ngIf="editProjectStep === 2" class="update-step-content">
+      <div class="type-info mb-3">
+        <span class="badge" [ngClass]="{
+          'bg-info': editingProject?.specificationType === 'USER_STORY',
+          'bg-success': editingProject?.specificationType === 'LIEN_GIT',
+          'bg-warning': editingProject?.specificationType === 'CODE_FICHIER',
+          'bg-danger': editingProject?.specificationType === 'LIEN_APPLICATION'
+        }">
+          Type : {{ editingProject?.specificationType }}
+        </span>
+      </div>
+
+      <div class="field" *ngIf="editingProject?.specificationType === 'USER_STORY'">
+        <label>USER STORY</label>
+        <textarea class="form-control-custom" [(ngModel)]="updatedProjectData.specificationContenu" rows="5" placeholder="Contenu de la User Story"></textarea>
+      </div>
+
+      <div class="field" *ngIf="editingProject?.specificationType === 'LIEN_APPLICATION'">
+        <label>URL DE L'APPLICATION</label>
+        <input type="text" [(ngModel)]="updatedProjectData.specificationContenu" placeholder="https://..." />
+      </div>
+
+      <div class="field" *ngIf="editingProject?.specificationType === 'LIEN_APPLICATION'">
+        <label>FOCUS / OBJECTIF DU TEST</label>
+        <textarea class="form-control-custom" [(ngModel)]="updatedProjectData.focusOptionnel" rows="5" placeholder="Détails de l'objectif du test (comptes, étapes, etc.)"></textarea>
+      </div>
+
+      <div class="field" *ngIf="editingProject?.specificationType === 'LIEN_GIT'">
+        <label>LIEN GIT</label>
+        <input type="text" [(ngModel)]="updatedProjectData.specificationContenu" placeholder="https://github.com/..." />
+      </div>
+
+      <div class="field" *ngIf="editingProject?.specificationType === 'CODE_FICHIER'">
+        <label>REMPLACER LE FICHIER (OPTIONNEL)</label>
+        <div class="file-upload-edit">
+          <input type="file" id="editFileInput" (change)="onFileSelected($event)" class="d-none" />
+          <label for="editFileInput" class="btn btn-outline w-100 py-3 d-flex align-items-center justify-content-center gap-2" style="border: 2px dashed #e2e8f0; border-radius: 12px; background: #f8fafc;">
+            <i class="bi bi-cloud-arrow-up fs-4 text-primary"></i>
+            <span class="fw-semibold text-dark">{{ selectedFile ? selectedFile.name : 'Choisir un nouveau fichier...' }}</span>
+          </label>
+        </div>
+        <small class="text-muted mt-2 d-block" *ngIf="!selectedFile">
+          Fichier actuel : <strong class="text-primary">{{ getFilename(editingProject?.specificationContenu) }}</strong>
+        </small>
+        <div class="text-success mt-2 small fw-bold" *ngIf="selectedFile">
+          <i class="bi bi-check-circle-fill"></i> Nouveau fichier prêt à être téléchargé
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Finalisation -->
+    <div *ngIf="editProjectStep === 3" class="update-step-content">
+      <div class="review-box">
+        <p class="mb-3">Veuillez vérifier les modifications avant de confirmer.</p>
+        <ul class="list-unstyled">
+          <li class="mb-2"><strong>Nom :</strong> {{ updatedProjectData.nom }}</li>
+          <li class="mb-2"><strong>Type :</strong> {{ editingProject?.specificationType }}</li>
+          <li class="mb-2" *ngIf="updatedProjectData.description"><strong>Description :</strong> {{ updatedProjectData.description }}</li>
+          <li class="mb-2" *ngIf="editingProject?.specificationType !== 'CODE_FICHIER'">
+            <strong>Contenu :</strong> {{ updatedProjectData.specificationContenu | slice:0:100 }}{{ (updatedProjectData.specificationContenu?.length > 100) ? '...' : '' }}
+          </li>
+          <li class="mb-2" *ngIf="editingProject?.specificationType === 'CODE_FICHIER'">
+            <strong>Fichier :</strong> 
+            <span [class.text-success]="selectedFile" [class.fw-bold]="selectedFile">
+              {{ selectedFile ? selectedFile.name : getFilename(editingProject?.specificationContenu) }}
+            </span>
+            <span *ngIf="selectedFile" class="badge bg-success ms-2">Nouveau</span>
+          </li>
+          <li class="mb-2" *ngIf="updatedProjectData.focusOptionnel">
+            <strong>Focus :</strong> {{ updatedProjectData.focusOptionnel | slice:0:100 }}{{ (updatedProjectData.focusOptionnel?.length > 100) ? '...' : '' }}
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="update-actions">
+      <button type="button" class="btn btn-outline" 
+              (click)="editProjectStep === 1 ? closeEditProjectModal() : goToEditStep(editProjectStep - 1)">
+        ← Retour
+      </button>
+      
+      <button *ngIf="editProjectStep < 3" type="button" class="btn btn-primary" 
+              (click)="goToEditStep(editProjectStep + 1)"
+              [disabled]="!updatedProjectData.nom">
+        Continuer →
+      </button>
+      
+      <button *ngIf="editProjectStep === 3" type="button" class="btn btn-primary" 
+              (click)="saveProjectChanges()" [disabled]="isUpdatingProject">
+        <span *ngIf="!isUpdatingProject">Confirmer</span>
+        <span *ngIf="isUpdatingProject"><span class="spinner-border spinner-border-sm me-2"></span> Mise à jour...</span>
+      </button>
+    </div>
+  </div>
+</div>
+

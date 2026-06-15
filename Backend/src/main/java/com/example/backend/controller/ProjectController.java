@@ -85,15 +85,16 @@ public class ProjectController {
 
    //Met à jour un projet
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
     public ResponseEntity<?> updateProject(
             @PathVariable UUID id,
-            @Valid @RequestBody ProjectRequest projectRequest) {
+            @RequestPart("project") ProjectRequest projectRequest,
+            @RequestPart(value = "fichier", required = false) MultipartFile fichier) {
         try {
             UUID userId = getCurrentUserId();
-            log.info("Mise à jour du projet: {} par: {}", id, userId);
+            log.info("Mise à jour du projet: {} par: {} avec fichier: {}", id, userId, (fichier != null));
 
-            ProjectResponse response = projectService.updateProject(id, projectRequest, userId);
+            ProjectResponse response = projectService.updateProject(id, projectRequest, fichier, userId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Erreur lors de la mise à jour du projet", e);
