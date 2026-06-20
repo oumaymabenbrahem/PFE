@@ -1794,7 +1794,8 @@ def _ensure_minimum_scenarios(
 
     if len(merged) < minimum:
         needed = minimum - len(merged)
-        merged.extend(_build_targeted_supplemental_scenarios(url, elements_dicts, needed, focus_objective))
+        # Pass existing scenarios so _build_targeted_supplemental_scenarios can extract literal values
+        merged.extend(_build_targeted_supplemental_scenarios(url, elements_dicts, needed, focus_objective, merged))
 
     merged = [_repair_scenario_locators_with_validated_elements(scenario, elements_dicts) for scenario in merged]
     return _limit_diverse_scenarios(_deduplicate_scenarios(merged), max_count)
@@ -2000,12 +2001,37 @@ def _scenario_clicks_focus_input_value(gherkin: str, focus_objective: str) -> bo
     return False
 
 
-def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict], needed: int, focus_objective: str = "") -> List[Dict]:
-    """Generate concrete extra scenarios from detected DOM elements when the LLM under-produces."""
+def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict], needed: int, focus_objective: str = "", existing_scenarios: List[Dict] = None) -> List[Dict]:
+    """Generate concrete extra scenarios from detected DOM elements when the LLM under-produces.
+
+    Args:
+        url: Target URL
+        elements_dicts: Detected elements from the page
+        needed: Number of scenarios to generate
+        focus_objective: Optional focus/objective for the test
+        existing_scenarios: List of already-generated scenarios to extract literal values from
+    """
     scenarios: List[Dict] = []
     elements_dicts = _filter_elements_by_focus(elements_dicts, focus_objective)
     given = f"Given l'utilisateur se trouve sur la page \"{_safe_gherkin_value(url)}\""
     url_token = _url_contains_token(url)
+
+    # Build a map of field identifiers to literal values from existing scenarios
+    existing_literal_values = {}
+    if existing_scenarios:
+        for scenario in existing_scenarios:
+            gherkin = scenario.get("senario", "")
+            # Extract all (label, value) pairs from "saisit VALUE dans le champ LABEL" patterns
+            matches = re.findall(
+                r'(?:saisit|remplit|tape)\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d]\s+dans\s+(?:le\s+)?champ\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d]',
+                gherkin,
+                re.IGNORECASE
+            )
+            for value, label in matches:
+                if value and label:
+                    # Normalize label to match field identifiers
+                    label_norm = _normalize_for_match(label)
+                    existing_literal_values[label_norm] = value.strip()
 
     if not focus_objective or _focus_mentions(focus_objective, ["navigation", "chargement", "page", "url", "lien"]):
         scenarios.append(_scenario_dict(
@@ -2046,7 +2072,13 @@ def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict],
         ))
 
         if tag in fillable_tags and field_type in fillable_types:
-            test_value = _test_value_for_field(el)  # Use KNN/fallback for supplemental scenarios
+            # Check if this field already has a literal value in existing scenarios
+            label_norm = _normalize_for_match(label)
+            explicit_value = existing_literal_values.get(label_norm)
+
+            # Use explicit value if found, otherwise generate via KNN/fallback
+            test_value = explicit_value if explicit_value else _test_value_for_field(el)
+
             scenarios.append(_scenario_dict(
                 f"Fonctionnel - Saisie valide - {label}",
                 "Fonctionnel",
