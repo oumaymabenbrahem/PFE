@@ -2046,7 +2046,7 @@ def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict],
         ))
 
         if tag in fillable_tags and field_type in fillable_types:
-            test_value = _test_value_for_field(el)
+            test_value = _test_value_for_field(el)  # Use KNN/fallback for supplemental scenarios
             scenarios.append(_scenario_dict(
                 f"Fonctionnel - Saisie valide - {label}",
                 "Fonctionnel",
@@ -2243,27 +2243,83 @@ def _element_display_name(el: Dict) -> str:
     return "élément"
 
 
-def _test_value_for_field(el: Dict) -> str:
-    # 1. Fallback heuristique si le modèle KNN n'est pas prêt
+def _extract_literal_value_from_step(step_text: str) -> Optional[str]:
+    """
+    Extract literal value from Gherkin step if present.
+
+    Priority handling for test values in Gherkin steps:
+    1. If a literal value is already present in the step (between quotes), ALWAYS use it
+    2. Never replace explicit Gherkin values with KNN/CSV generated values
+    3. KNN/CSV values should only be used when generating NEW scenarios where no value exists
+
+    Handles patterns like:
+    - When l'utilisateur saisit "99.99" dans le champ...
+    - When l'utilisateur remplit "admin" dans le champ...
+    - When l'utilisateur saisit "test@email.com" dans...
+
+    Returns the first quoted literal value found in the step, or None if not present.
+    """
+    if not step_text or not isinstance(step_text, str):
+        return None
+
+    # Match patterns like: saisit "VALUE" dans or remplit "VALUE" avec
+    # Captures text between guillemets (including French guillemets « » and others)
+    patterns = [
+        r'(?:saisit|remplit|tape|enters?|fills?|types?)\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d](?:\s+(?:dans|avec|in|into))',
+        r'["\u00ab\u201c]([^\"\u00bb\u201d]+)["\u00bb\u201d]\s+(?:dans|avec|in|into)',  # More general
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, step_text, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if value:  # Return only if non-empty
+                return value
+
+    return None
+
+
+def _test_value_for_field(el: Dict, explicit_value: Optional[str] = None) -> str:
+    """
+    Generate or return test value for a field.
+
+    Priority:
+    1. If explicit_value is provided (from Gherkin step), use it directly
+    2. If KNN model has a good match, use KNN value
+    3. Otherwise, use heuristic fallback
+
+    Args:
+        el: Element dictionary containing field metadata
+        explicit_value: Literal value extracted from Gherkin step (highest priority)
+
+    Returns:
+        The value to use for testing
+    """
+
+    # 1. HIGHEST PRIORITY: Use explicit value from Gherkin if provided
+    if explicit_value and explicit_value.strip():
+        return explicit_value.strip()
+
+    # 2. Build semantic query from element metadata for KNN
     field_type = (el.get("type") or "").lower()
     name_attr = (el.get("name") or "").lower()
     id_attr = (el.get("id") or "").lower()
     placeholder = (el.get("placeholder") or "").lower()
-    
+
     # Construction de la requête sémantique
     query = f"{field_type} {name_attr} {id_attr} {placeholder}".strip().lower()
-    
-    # 2. Utilisation du KNN
+
+    # 3. Try KNN if available
     if form_test_df is not None and not form_test_df.empty:
         try:
             # Vectorisation de la requête utilisateur
             query_vec = knn_vectorizer.transform([query])
-            
+
             # Recherche de l'entrée la plus proche en utilisant la similarité cosinus
             distances, indices = knn_model.kneighbors(query_vec)
-            
+
             # Seuil de confiance (si la distance est trop grande, on peut douter du match)
-            # Avec cosine metric, distance = 1 - similarity. 
+            # Avec cosine metric, distance = 1 - similarity.
             # Si distance est proche de 0, c'est très similaire.
             if distances[0][0] < 0.8: # On accepte si un minimum de ressemblance existe
                 best_match_idx = indices[0][0]
@@ -2271,7 +2327,7 @@ def _test_value_for_field(el: Dict) -> str:
         except Exception as e:
             print(f"⚠️ Erreur lors de la prédiction KNN : {e}")
 
-    # 3. Fallback Heuristique Classique (si KNN échoue ou n'est pas assez précis)
+    # 4. Fallback Heuristique Classique (si KNN échoue ou n'est pas assez précis)
     if "email" in query:
         return "qa.user@example.com"
     if "password" in query or "pass" in query:
@@ -2282,7 +2338,7 @@ def _test_value_for_field(el: Dict) -> str:
         return "+21612345678"
     if "search" in query or "query" in query:
         return "produit test"
-    
+
     return "valeur de test automatique"
 
 

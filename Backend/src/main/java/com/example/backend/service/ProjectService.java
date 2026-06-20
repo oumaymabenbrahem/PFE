@@ -544,7 +544,7 @@ public class ProjectService {
             // Timeout de 15 minutes pour crawl + validation locators + génération IA.
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(60000);
-            requestFactory.setReadTimeout(900000);
+            requestFactory.setReadTimeout(1800000); // 30 minutes (crawl + validation + génération)
             RestTemplate restTemplate = new RestTemplate(requestFactory);
             
             String pythonApiUrl = "";
@@ -692,7 +692,7 @@ public class ProjectService {
         try {
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(60000);
-            requestFactory.setReadTimeout(1200000); // 20 minutes exécution max
+            requestFactory.setReadTimeout(3600000); // 60 minutes exécution max
             RestTemplate restTemplate = new RestTemplate(requestFactory);
 
             HttpHeaders headers = new HttpHeaders();
