@@ -207,10 +207,11 @@ class GherkinExecutor:
         ),
     }
 
-    def __init__(self, headless: bool = False, implicit_wait: int = 10):
+    def __init__(self, headless: bool = False, implicit_wait: int = 10, use_self_healing: bool = True):
         """Initialize GherkinExecutor with Selenium WebDriver"""
         self.headless = headless
         self.implicit_wait = implicit_wait
+        self.use_self_healing = use_self_healing
         self.driver = None
         self.wait = None
         self.base_url = None
@@ -232,12 +233,19 @@ class GherkinExecutor:
 
             # Auto-download and use a compatible ChromeDriver for installed Chrome.
             service = Service(ChromeDriverManager().install())
-            # === SELF-HEALING (auto-integre) : tous les find_element deviennent auto-reparants ===
-            try:
-                from self_healing_driver import enable_self_healing
-                enable_self_healing(threshold=0.55)
-            except Exception as _sh_err:
-                logger.warning(f"Self-healing non actif: {_sh_err}")
+            # === SELF-HEALING (auto-integre) : actif uniquement si demande (exclusif a l'EXECUTION) ===
+            if self.use_self_healing:
+                try:
+                    from self_healing_driver import enable_self_healing
+                    enable_self_healing(threshold=0.55)
+                except Exception as _sh_err:
+                    logger.warning(f"Self-healing non actif: {_sh_err}")
+            else:
+                try:
+                    from self_healing_driver import disable_self_healing
+                    disable_self_healing()
+                except:
+                    pass
             self.driver = webdriver.Chrome(service=service, options=options)
             self.wait = WebDriverWait(self.driver, self.implicit_wait)
             mode = "headless" if self.headless else "visible/GUI"

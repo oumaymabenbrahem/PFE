@@ -77,7 +77,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   fileAnalysisSummary: any = null;
 
   // Tester tab: CodeT5 script + Selenium execution
-  generatedSeleniumScript: string = '';
+  generatedSeleniumScript: string | null = null;
   isGeneratingScript: boolean = false;
   generateScriptError: string = '';
   isRunningFileTests: boolean = false;
@@ -463,6 +463,41 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       });
   }
 
+  private normalizeFileSeleniumResult(response: any): any {
+    const payload = response?.body || response?.data || response?.result || response || {};
+    const results = payload.results || payload.summary || (
+      payload.total !== undefined || payload.passed !== undefined || payload.failed !== undefined
+        ? {
+            total: payload.total || 0,
+            passed: payload.passed || 0,
+            failed: payload.failed || 0
+          }
+        : null
+    );
+    const pdfBase64 = payload.pdf_base64
+      || payload.report_base64_pdf
+      || payload.pdfBase64
+      || response?.pdf_base64
+      || response?.report_base64_pdf
+      || '';
+    const scenarioResults = payload.scenarios_results
+      || payload.scenario_results
+      || payload.scenarioResults
+      || response?.scenarios_results
+      || [];
+    const normalizedStatus = payload.status || (results?.failed > 0 ? 'FAILED' : 'PASSED');
+
+    return {
+      ...payload,
+      status: results?.failed > 0 && normalizedStatus === 'COMPLETED' ? 'FAILED' : normalizedStatus,
+      logs: payload.logs || payload.execution_logs || response?.logs || '',
+      results,
+      scenarios_results: scenarioResults,
+      pdf_base64: pdfBase64,
+      report_base64_pdf: pdfBase64
+    };
+  }
+
   /**
    * Ferme la modale de confirmation de suppression
    */
@@ -531,7 +566,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             this.elementsDetected = response.elementsCount !== undefined ? response.elementsCount : '-';
           }
 
-          if (this.showWebTestingDashboard && project) {
+          if (this.showWebTestingDashboard && project && project.specificationType !== 'CODE_FICHIER') {
              if (this.pipelineInterval) clearInterval(this.pipelineInterval);
              this.pipelineCurrentStep = 4; // Executing
              this.pipelineProgress = 80;
@@ -756,6 +791,12 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           this.scenariosGenerated = (metrics?.total ?? 0).toString();
           if (metrics?.report_base64_pdf) {
             this.executionPdfReport = metrics.report_base64_pdf;
+            // For CODE_FICHIER, we also want to populate fileTestResults and fileTestPdfReport
+            this.fileTestPdfReport = metrics.report_base64_pdf;
+            this.fileTestResults = { 
+              status: metrics.status || 'COMPLETED',
+              results: metrics
+            }; 
           }
 
           // If backend has no persisted metrics yet, restore last known local metrics.
@@ -798,6 +839,21 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           );
           // Charger les scénarios dans generatedScenarios pour l'affichage
           this.generatedScenarios = filteredScripts;
+
+          // For CODE_FICHIER, if we have a generated script in TestScript, load it
+          if (project.specificationType === 'CODE_FICHIER') {
+             this.projectService.getScripts(project.id).subscribe({
+                next: (res: any) => {
+                  if (res && res.scriptContent) {
+                    this.generatedSeleniumScript = res.scriptContent;
+                  }
+                  // Auto-trigger analysis if fields are empty to re-hydrate the "Analyser" tab
+                  if (this.fileAnalysisFields.length === 0) {
+                    this.analyzeProjectFile();
+                  }
+                }
+             });
+          }
 
           if (this.scenariosGenerated === '0' && this.generatedScenarios.length > 0) {
             this.scenariosGenerated = this.generatedScenarios.length.toString();
@@ -1056,6 +1112,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.fileAnalysisFields = [];
     this.fileAnalysisBehaviors = [];
     this.fileAnalysisSummary = null;
+    this.generatedSeleniumScript = null;
 
     // 1. Récupérer le contenu du fichier depuis le backend
     this.projectService.getFileContent(this.webTestingProject.id)
@@ -1078,8 +1135,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             return;
           }
 
-          // 3. Envoyer au Python API pour analyse BeautifulSoup
-          this.projectService.analyzeHtml(htmlContent)
+          // 3. Envoyer au Backend Proxy pour analyse BeautifulSoup
+          this.projectService.analyzeHtml(this.webTestingProject!.id, htmlContent)
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: (analysis: any) => {
@@ -1143,11 +1200,13 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             return;
           }
 
-          // Appeler l'API CodeT5
+          // Appeler l'API CodeT5 via proxy Backend
           this.projectService.generateFileSelenium(
+            this.webTestingProject!.id,
             this.fileAnalysisFields,
             this.generatedScenarios || [],
-            htmlContent
+            htmlContent,
+            this.webTestingProject?.focusOptionnel || ''
           ).pipe(takeUntil(this.destroy$))
             .subscribe({
               next: (result: any) => {
@@ -1189,19 +1248,46 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.fileTestLogs = '';
 
     this.projectService.runFileSelenium(
+      this.webTestingProject!.id,
       this.generatedSeleniumScript,
       this.cachedHtmlContentBase64,
       this.generatedScenarios || [],
-      this.fileAnalysisFields || []
+      this.fileAnalysisFields || [],
+      this.webTestingProject?.focusOptionnel || ''
     ).pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result: any) => {
           this.isRunningFileTests = false;
-          this.fileTestResults = result;
-          this.fileTestLogs = result.logs || '';
-          this.fileTestPdfReport = result.pdf_base64 || '';
+          const normalized = this.normalizeFileSeleniumResult(result);
+          this.fileTestResults = normalized;
+          this.fileTestLogs = normalized.logs || '';
+          this.fileTestPdfReport = normalized.pdf_base64 || normalized.report_base64_pdf || '';
+          this.activeFileSpecTab = 'rapport';
+
+          if (!this.fileTestPdfReport && this.webTestingProject?.id) {
+            this.projectService.getExecutionMetrics(this.webTestingProject.id)
+              .pipe(takeUntil(this.destroy$))
+              .subscribe({
+                next: (metrics: any) => {
+                  if (!this.fileTestPdfReport && metrics?.report_base64_pdf) {
+                    this.fileTestPdfReport = metrics.report_base64_pdf;
+                  }
+                  if (!this.fileTestResults?.results && metrics) {
+                    this.fileTestResults = {
+                      ...this.fileTestResults,
+                      results: {
+                        total: metrics.total || 0,
+                        passed: metrics.passed || 0,
+                        failed: metrics.failed || 0
+                      }
+                    };
+                  }
+                },
+                error: (metricsErr) => console.warn('Impossible de recuperer le rapport persiste:', metricsErr)
+              });
+          }
           
-          if (result.status === 'PASSED') {
+          if (normalized.status === 'PASSED') {
             this.successMessage = '✅ Tests exécutés avec succès ! Chrome a testé le fichier.';
           } else {
             this.errorMessage = '❌ Tests échoués. Consultez les logs ci-dessous.';

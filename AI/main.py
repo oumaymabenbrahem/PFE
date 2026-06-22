@@ -188,10 +188,10 @@ def hf_chat_completion(messages, max_tokens=3000, temperature=0.2, retries_per_m
 client = InferenceClient(FALLBACK_MODELS[0], token=HF_TOKEN) if HF_TOKEN else None
 
 MIN_USER_STORY_SCENARIOS = 8
-MIN_DYNAMIC_SCENARIOS = 12
-MAX_DYNAMIC_SCENARIOS = 18
+MIN_DYNAMIC_SCENARIOS = 8
+MAX_DYNAMIC_SCENARIOS = 10
 FOCUSED_MIN_SCENARIOS = 1
-FOCUSED_MAX_SCENARIOS = 4
+FOCUSED_MAX_SCENARIOS = 2
 
 class UserStoryRequest(BaseModel):
     user_story: str
@@ -1442,7 +1442,7 @@ def _validate_elements_locators_in_current_dom(url: str, elements_dicts: List[Di
     elements_to_validate = sorted_elements[:MAX_LOCATOR_VALIDATION_ELEMENTS]
     skipped_elements = sorted_elements[MAX_LOCATOR_VALIDATION_ELEMENTS:]
 
-    executor = GherkinExecutor(headless=True, implicit_wait=3)
+    executor = GherkinExecutor(headless=True, implicit_wait=3, use_self_healing=False)
     validated: List[Dict] = []
     summary: Dict[str, Any] = {
         "total": len(elements_dicts),
@@ -1794,8 +1794,7 @@ def _ensure_minimum_scenarios(
 
     if len(merged) < minimum:
         needed = minimum - len(merged)
-        # Pass existing scenarios so _build_targeted_supplemental_scenarios can extract literal values
-        merged.extend(_build_targeted_supplemental_scenarios(url, elements_dicts, needed, focus_objective, merged))
+        merged.extend(_build_targeted_supplemental_scenarios(url, elements_dicts, needed, focus_objective))
 
     merged = [_repair_scenario_locators_with_validated_elements(scenario, elements_dicts) for scenario in merged]
     return _limit_diverse_scenarios(_deduplicate_scenarios(merged), max_count)
@@ -2001,37 +2000,12 @@ def _scenario_clicks_focus_input_value(gherkin: str, focus_objective: str) -> bo
     return False
 
 
-def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict], needed: int, focus_objective: str = "", existing_scenarios: List[Dict] = None) -> List[Dict]:
-    """Generate concrete extra scenarios from detected DOM elements when the LLM under-produces.
-
-    Args:
-        url: Target URL
-        elements_dicts: Detected elements from the page
-        needed: Number of scenarios to generate
-        focus_objective: Optional focus/objective for the test
-        existing_scenarios: List of already-generated scenarios to extract literal values from
-    """
+def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict], needed: int, focus_objective: str = "") -> List[Dict]:
+    """Generate concrete extra scenarios from detected DOM elements when the LLM under-produces."""
     scenarios: List[Dict] = []
     elements_dicts = _filter_elements_by_focus(elements_dicts, focus_objective)
     given = f"Given l'utilisateur se trouve sur la page \"{_safe_gherkin_value(url)}\""
     url_token = _url_contains_token(url)
-
-    # Build a map of field identifiers to literal values from existing scenarios
-    existing_literal_values = {}
-    if existing_scenarios:
-        for scenario in existing_scenarios:
-            gherkin = scenario.get("senario", "")
-            # Extract all (label, value) pairs from "saisit VALUE dans le champ LABEL" patterns
-            matches = re.findall(
-                r'(?:saisit|remplit|tape)\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d]\s+dans\s+(?:le\s+)?champ\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d]',
-                gherkin,
-                re.IGNORECASE
-            )
-            for value, label in matches:
-                if value and label:
-                    # Normalize label to match field identifiers
-                    label_norm = _normalize_for_match(label)
-                    existing_literal_values[label_norm] = value.strip()
 
     if not focus_objective or _focus_mentions(focus_objective, ["navigation", "chargement", "page", "url", "lien"]):
         scenarios.append(_scenario_dict(
@@ -2072,13 +2046,7 @@ def _build_targeted_supplemental_scenarios(url: str, elements_dicts: List[Dict],
         ))
 
         if tag in fillable_tags and field_type in fillable_types:
-            # Check if this field already has a literal value in existing scenarios
-            label_norm = _normalize_for_match(label)
-            explicit_value = existing_literal_values.get(label_norm)
-
-            # Use explicit value if found, otherwise generate via KNN/fallback
-            test_value = explicit_value if explicit_value else _test_value_for_field(el)
-
+            test_value = _test_value_for_field(el)
             scenarios.append(_scenario_dict(
                 f"Fonctionnel - Saisie valide - {label}",
                 "Fonctionnel",
@@ -2275,83 +2243,27 @@ def _element_display_name(el: Dict) -> str:
     return "élément"
 
 
-def _extract_literal_value_from_step(step_text: str) -> Optional[str]:
-    """
-    Extract literal value from Gherkin step if present.
-
-    Priority handling for test values in Gherkin steps:
-    1. If a literal value is already present in the step (between quotes), ALWAYS use it
-    2. Never replace explicit Gherkin values with KNN/CSV generated values
-    3. KNN/CSV values should only be used when generating NEW scenarios where no value exists
-
-    Handles patterns like:
-    - When l'utilisateur saisit "99.99" dans le champ...
-    - When l'utilisateur remplit "admin" dans le champ...
-    - When l'utilisateur saisit "test@email.com" dans...
-
-    Returns the first quoted literal value found in the step, or None if not present.
-    """
-    if not step_text or not isinstance(step_text, str):
-        return None
-
-    # Match patterns like: saisit "VALUE" dans or remplit "VALUE" avec
-    # Captures text between guillemets (including French guillemets « » and others)
-    patterns = [
-        r'(?:saisit|remplit|tape|enters?|fills?|types?)\s+["\u00ab\u201c]([^\"\u00bb\u201d]*)["\u00bb\u201d](?:\s+(?:dans|avec|in|into))',
-        r'["\u00ab\u201c]([^\"\u00bb\u201d]+)["\u00bb\u201d]\s+(?:dans|avec|in|into)',  # More general
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, step_text, re.IGNORECASE)
-        if match:
-            value = match.group(1).strip()
-            if value:  # Return only if non-empty
-                return value
-
-    return None
-
-
-def _test_value_for_field(el: Dict, explicit_value: Optional[str] = None) -> str:
-    """
-    Generate or return test value for a field.
-
-    Priority:
-    1. If explicit_value is provided (from Gherkin step), use it directly
-    2. If KNN model has a good match, use KNN value
-    3. Otherwise, use heuristic fallback
-
-    Args:
-        el: Element dictionary containing field metadata
-        explicit_value: Literal value extracted from Gherkin step (highest priority)
-
-    Returns:
-        The value to use for testing
-    """
-
-    # 1. HIGHEST PRIORITY: Use explicit value from Gherkin if provided
-    if explicit_value and explicit_value.strip():
-        return explicit_value.strip()
-
-    # 2. Build semantic query from element metadata for KNN
+def _test_value_for_field(el: Dict) -> str:
+    # 1. Fallback heuristique si le modèle KNN n'est pas prêt
     field_type = (el.get("type") or "").lower()
     name_attr = (el.get("name") or "").lower()
     id_attr = (el.get("id") or "").lower()
     placeholder = (el.get("placeholder") or "").lower()
-
+    
     # Construction de la requête sémantique
     query = f"{field_type} {name_attr} {id_attr} {placeholder}".strip().lower()
-
-    # 3. Try KNN if available
+    
+    # 2. Utilisation du KNN
     if form_test_df is not None and not form_test_df.empty:
         try:
             # Vectorisation de la requête utilisateur
             query_vec = knn_vectorizer.transform([query])
-
+            
             # Recherche de l'entrée la plus proche en utilisant la similarité cosinus
             distances, indices = knn_model.kneighbors(query_vec)
-
+            
             # Seuil de confiance (si la distance est trop grande, on peut douter du match)
-            # Avec cosine metric, distance = 1 - similarity.
+            # Avec cosine metric, distance = 1 - similarity. 
             # Si distance est proche de 0, c'est très similaire.
             if distances[0][0] < 0.8: # On accepte si un minimum de ressemblance existe
                 best_match_idx = indices[0][0]
@@ -2359,7 +2271,7 @@ def _test_value_for_field(el: Dict, explicit_value: Optional[str] = None) -> str
         except Exception as e:
             print(f"⚠️ Erreur lors de la prédiction KNN : {e}")
 
-    # 4. Fallback Heuristique Classique (si KNN échoue ou n'est pas assez précis)
+    # 3. Fallback Heuristique Classique (si KNN échoue ou n'est pas assez précis)
     if "email" in query:
         return "qa.user@example.com"
     if "password" in query or "pass" in query:
@@ -2370,8 +2282,78 @@ def _test_value_for_field(el: Dict, explicit_value: Optional[str] = None) -> str
         return "+21612345678"
     if "search" in query or "query" in query:
         return "produit test"
-
+    
     return "valeur de test automatique"
+
+
+def _extract_values_from_gherkin(gherkin_text: str) -> Dict[str, str]:
+    """
+    Extrait les paires (champ, valeur) depuis un texte Gherkin.
+    Patterns supportés :
+    - je saisis 'v' dans le champ 'c'
+    - entre "v" dans "c"
+    - remplit 'v' dans le champ 'c'
+    """
+    if not gherkin_text:
+        return {}
+
+    extracted = {}
+    # Patterns pour : (action) 'valeur' (dans/to) 'champ'
+    # Supporte Français (saisit, entre, remplit) et Anglais (enters, types, fills)
+    patterns = [
+        # Français: saisit 'val' dans 'champ'
+        r"(?:saisit|entre|remplit|tape)\s+['\"]([^'\"]+)['\"]\s+(?:dans(?:\s+le\s+champ)?)\s+['\"]([^'\"]+)['\"]",
+        # Anglais: enters 'val' into 'champ'
+        r"(?:enters|types|fills|inputs)\s+['\"]([^'\"]+)['\"]\s+(?:into|in(?:\s+the\s+field)?)\s+['\"]([^'\"]+)['\"]",
+        # Generic fallback for any action
+        r"['\"]([^'\"]+)['\"]\s+(?:dans|into|in)\s+['\"]([^'\"]+)['\"]"
+    ]
+
+    for pattern in patterns:
+        matches = re.finditer(pattern, gherkin_text, re.IGNORECASE)
+        for match in matches:
+            val = match.group(1).strip()
+            field_name = match.group(2).strip().lower()
+            if field_name and val:
+                extracted[field_name] = val
+
+    if extracted:
+        print(f"[GherkinExtract] ✓ Extracted {len(extracted)} values: {list(extracted.keys())}")
+    return extracted
+
+
+def _find_matching_field_value(field_info: Dict[str, Any], extracted_values: Dict[str, str]) -> Optional[str]:
+    """
+    Tente de trouver une valeur extraite pour un champ spécifique en utilisant
+    tous les critères possibles (label, placeholder, name, id, text, etc.)
+    """
+    if not extracted_values:
+        return None
+
+    # Critères de recherche par ordre de priorité (doit être cohérent avec _element_display_name)
+    search_keys = []
+    
+    # 1. Attributs explicites
+    for key in ["label", "placeholder", "aria-label", "name", "id", "data-testid", "text"]:
+        val = str(field_info.get(key) or "").strip().lower()
+        if val:
+            search_keys.append(val)
+    
+    # 2. Tag (dernier recours)
+    search_keys.append((field_info.get("tag") or "").lower())
+
+    # Vérification d'un match exact dans les clés extraites
+    for key in search_keys:
+        if key in extracted_values:
+            return extracted_values[key]
+
+    # Vérification d'un match partiel (contenant)
+    for g_field, g_val in extracted_values.items():
+        for key in search_keys:
+            if g_field in key or key in g_field:
+                return g_val
+
+    return None
 
 
 def _is_button_like(el: Dict) -> bool:
@@ -2615,12 +2597,14 @@ class GenerateFileSeleniumRequest(BaseModel):
     fields: List[Dict[str, Any]]
     tests: List[Dict[str, Any]]
     html_content: str
+    focus_objective: Optional[str] = ""
 
 class RunFileSeleniumRequest(BaseModel):
     script_code: str
     html_content: str   # base64 encoded HTML
     tests: List[Dict[str, Any]] = []   # Liste des tests générés (pour exécution individuelle)
     fields: List[Dict[str, Any]] = []  # Champs analysés (pour génération de scripts par test)
+    focus_objective: Optional[str] = ""
 
 
 @app.post("/api/generate-file-selenium")
@@ -2674,6 +2658,7 @@ async def generate_file_selenium(request: GenerateFileSeleniumRequest):
             f_type = field.get('type', '')
             f_placeholder = field.get('placeholder', '')
             f_required = field.get('required', False)
+            f_label = field.get('label', '')
             
             locator = ""
             locator_type = ""
@@ -2687,8 +2672,30 @@ async def generate_file_selenium(request: GenerateFileSeleniumRequest):
                 continue
             
             if tag == 'input' and f_type in ('text', 'email', 'password', 'tel', 'number', 'search'):
-                # Utilisation du KNN pour trouver la valeur de test la plus appropriée
-                test_value = _test_value_for_field(field)
+                # Priorité 1: Tenter d'extraire depuis un scénario pertinent
+                test_value = None
+                if request.tests:
+                    # On cherche dans le premier scénario fonctionnel par défaut pour le script global
+                    first_scenario = next((t for t in request.tests if 'fonctionnel' in t.get('type', '').lower()), request.tests[0])
+                    scenario_text = first_scenario.get('senario', '')
+                    extracted = _extract_values_from_gherkin(scenario_text)
+                    test_value = _find_matching_field_value(field, extracted)
+                    if test_value:
+                        print(f"[ScriptGen-Global] ✓ Found value in scenario for {f_name or f_id}: '{test_value}'")
+
+                # Priorité 2: Focus objective
+                if not test_value and request.focus_objective:
+                    # Simulation d'extraction depuis le focus (regex simple)
+                    search_term = f_label or f_name or f_id
+                    focus_match = re.search(f"{search_term}[:=]\\s*['\"]([^'\"]+)['\"]", request.focus_objective, re.IGNORECASE)
+                    if focus_match:
+                        test_value = focus_match.group(1)
+                        print(f"[ScriptGen-Global] ✓ Found value in focus for {f_name or f_id}: '{test_value}'")
+
+                # Priorité 3: KNN
+                if not test_value:
+                    test_value = _test_value_for_field(field)
+
                 field_actions.append(f"# Remplir le champ {f_name or f_id} ({f_type})")
                 field_actions.append(f"elem = driver.find_element({locator_type}, '{locator}')")
                 field_actions.append(f"elem.clear()")
@@ -2707,7 +2714,17 @@ async def generate_file_selenium(request: GenerateFileSeleniumRequest):
                 field_actions.append(f"# Remplir le textarea {f_name or f_id}")
                 field_actions.append(f"textarea = driver.find_element({locator_type}, '{locator}')")
                 field_actions.append(f"textarea.clear()")
-                test_value = _test_value_for_field(field)
+                
+                # Appliquer la même priorité de valeur que pour input
+                test_value = None
+                if request.tests:
+                    first_scenario = next((t for t in request.tests if 'fonctionnel' in t.get('type', '').lower()), request.tests[0])
+                    extracted = _extract_values_from_gherkin(first_scenario.get('senario', ''))
+                    test_value = _find_matching_field_value(field, extracted)
+
+                if not test_value:
+                    test_value = _test_value_for_field(field)
+                
                 field_actions.append(f"textarea.send_keys('{test_value}')")
                 field_actions.append("")
             elif tag == 'button' or (tag == 'input' and f_type == 'submit'):
@@ -2778,7 +2795,7 @@ time.sleep(3)
         raise HTTPException(status_code=500, detail=f"Erreur génération CodeT5: {str(e)}")
 
 
-def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, Any]], file_url: str) -> str:
+def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, Any]], file_url: str, focus_objective: str = "") -> str:
     """Génère un script Selenium ciblé pour UN SEUL test case."""
     test_name = test.get('nomSenario', test.get('name', 'Test'))
     test_desc = test.get('description', '')
@@ -2801,31 +2818,48 @@ def _generate_single_test_script(test: Dict[str, Any], fields: List[Dict[str, An
             continue
 
         if tag == 'input' and f_type in ('text', 'email', 'password', 'tel', 'number', 'search'):
-            # Adapter la valeur selon le type de test
-            if 'incomplet' in name_lower or 'vide' in name_lower or 'formulaire incomplet' in name_lower:
-                # Test formulaire incomplet: ne pas remplir les champs
-                field_actions.append(f"# Champ {f_name or f_id} laissé vide intentionnellement")
-                continue
-            elif ('mot de passe non conforme' in name_lower or 'password' in name_lower.replace('mot de passe', 'password')) and f_type == 'password':
-                if 'incorrect' in name_lower or 'confirmation' in name_lower:
-                    test_value = "DifferentPass456!"
-                elif 'non conforme' in name_lower or 'faible' in name_lower:
-                    test_value = "123"
-                else:
-                    test_value = "TestPassword123!"
-            elif f_type == 'email':
-                if 'invalide' in name_lower or 'email' in name_lower and 'invalide' in name_lower:
-                    test_value = "invalid-email"
-                else:
-                    test_value = _test_value_for_field(field)
-            elif f_type in ('password', 'number', 'tel'):
-                # Si c'est un test spécifique "faible" ou "non conforme", on garde les valeurs d'erreur
-                if 'faible' in name_lower or 'non conforme' in name_lower:
-                    test_value = "123" if f_type == 'password' else "0"
-                else:
-                    test_value = _test_value_for_field(field)
+            # Priorité 1: Extraction directe depuis le Gherkin du test en cours
+            scenario_text = test.get('senario', '')
+            extracted = _extract_values_from_gherkin(scenario_text)
+            test_value = _find_matching_field_value(field, extracted)
+            
+            if test_value:
+                print(f"[ScriptGen] ✓ Using Gherkin value for field {f_name or f_id}: '{test_value}'")
             else:
-                test_value = _test_value_for_field(field)
+                # Priorité 2: Focus objective
+                if focus_objective:
+                    f_label = field.get('label', '')
+                    focus_match = re.search(f"{f_label or f_name or f_id}[:=]\\s*['\"]([^'\"]+)['\"]", focus_objective, re.IGNORECASE)
+                    if focus_match:
+                        test_value = focus_match.group(1)
+                        print(f"[ScriptGen] ✓ Using Focus value for field {f_name or f_id}: '{test_value}'")
+
+            if not test_value:
+                # Adapter la valeur selon le type de test (logique métier spécifique)
+                if 'incomplet' in name_lower or 'vide' in name_lower or 'formulaire incomplet' in name_lower:
+                    # Test formulaire incomplet: ne pas remplir les champs
+                    field_actions.append(f"# Champ {f_name or f_id} laissé vide intentionnellement")
+                    continue
+                elif ('mot de passe non conforme' in name_lower or 'password' in name_lower.replace('mot de passe', 'password')) and f_type == 'password':
+                    if 'incorrect' in name_lower or 'confirmation' in name_lower:
+                        test_value = "DifferentPass456!"
+                    elif 'non conforme' in name_lower or 'faible' in name_lower:
+                        test_value = "123"
+                    else:
+                        test_value = "TestPassword123!"
+                elif f_type == 'email':
+                    if 'invalide' in name_lower or 'email' in name_lower and 'invalide' in name_lower:
+                        test_value = "invalid-email"
+                    else:
+                        test_value = _test_value_for_field(field)
+                elif f_type in ('password', 'number', 'tel'):
+                    # Si c'est un test spécifique "faible" ou "non conforme", on garde les valeurs d'erreur
+                    if 'faible' in name_lower or 'non conforme' in name_lower:
+                        test_value = "123" if f_type == 'password' else "0"
+                    else:
+                        test_value = _test_value_for_field(field)
+                else:
+                    test_value = _test_value_for_field(field)
 
             field_actions.append(f"elem = driver.find_element({locator_type}, '{locator}')")
             field_actions.append(f"elem.clear()")
@@ -2952,7 +2986,7 @@ async def run_file_selenium(request: RunFileSeleniumRequest):
 
             # Générer le script spécifique pour CE test
             if fields:
-                test_script = _generate_single_test_script(test, fields, file_url)
+                test_script = _generate_single_test_script(test, fields, file_url, request.focus_objective)
             else:
                 # Fallback: utiliser le script global avec l'URL injectée
                 test_script = request.script_code

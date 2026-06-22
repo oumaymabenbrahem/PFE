@@ -259,6 +259,69 @@ public class ProjectController {
     }
 
     /**
+     * Récupère le script Selenium principal (pour CODE_FICHIER ou BDD)
+     */
+    @GetMapping("/{id}/scripts")
+    public ResponseEntity<?> getScripts(@PathVariable UUID id) {
+        try {
+            UUID userId = getCurrentUserId();
+            TestScript script = projectService.getScriptByProject(id, userId);
+            return ResponseEntity.ok(script);
+        } catch (com.example.backend.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            log.error("Erreur récupération script", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Proxies HTML analysis for CODE_FICHIER projects
+     */
+    @PostMapping("/{id}/analyze-html")
+    public ResponseEntity<?> analyzeHtml(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        try {
+            UUID userId = getCurrentUserId();
+            String htmlContent = body.get("html_content");
+            Map<String, Object> result = projectService.analyzeHtmlProxy(id, htmlContent, userId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Proxies Selenium generation for CODE_FICHIER projects
+     */
+    @PostMapping("/{id}/generate-file-selenium")
+    public ResponseEntity<?> generateFileSelenium(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        try {
+            UUID userId = getCurrentUserId();
+            Map<String, Object> result = projectService.generateFileSeleniumProxy(id, body, userId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Proxies Selenium execution for CODE_FICHIER projects
+     */
+    @PostMapping("/{id}/run-file-selenium")
+    public ResponseEntity<?> runFileSelenium(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        try {
+            UUID userId = getCurrentUserId();
+            Map<String, Object> result = projectService.runFileSeleniumProxy(id, body, userId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
      * Récupère le contenu du fichier uploadé (base64) pour les projets CODE_FICHIER
      */
     @GetMapping("/{id}/file-content")

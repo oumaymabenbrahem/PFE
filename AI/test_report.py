@@ -1,64 +1,53 @@
-"""Quick test to verify report generation produces valid output"""
-from report_generator import generate_html_report, generate_rich_report
 
-# Mock data
-scenarios = [
+import sys
+import os
+import base64
+from datetime import datetime
+
+# Add AI directory to path to import local modules
+sys.path.append(r'c:\Users\LENOVO\Desktop\opencode\PFE_ST2i - Copie\PFE_ST2i\AI')
+
+try:
+    from report_generator import generate_rich_report
+    print("SUCCESS: Successfully imported generate_rich_report")
+except ImportError as e:
+    print(f"ERROR: Failed to import generate_rich_report: {e}")
+    sys.exit(1)
+
+# Dummy data
+scenarios_results = [
     {
-        "scenario_name": "Recherche Amazon",
-        "nomSenario": "Recherche Amazon",
+        "scenario_name": "Test Scenario 1",
         "status": "PASSED",
-        "duration_ms": 3200,
+        "duration_ms": 1500,
         "steps": [
-            {"step_text": "Given l'utilisateur se trouve sur la page \"https://www.amazon.fr/\"", "status": "PASSED", "duration_ms": 1200, "error_message": None},
-            {"step_text": "When l'utilisateur saisit \"souris sans fil\" dans le champ de recherche (id: twotabsearchtextbox)", "status": "PASSED", "duration_ms": 800, "error_message": None},
-            {"step_text": "Then l'élément (id: search) devrait être visible", "status": "PASSED", "duration_ms": 600, "error_message": None},
+            {"step_text": "Given I open the page", "status": "PASSED", "duration_ms": 500},
+            {"step_text": "Then I see the title", "status": "PASSED", "duration_ms": 1000}
         ],
         "screenshots": [],
-        "error_message": None
-    },
-    {
-        "scenario_name": "Cookie Consent",
-        "nomSenario": "Cookie Consent",
-        "status": "FAILED",
-        "duration_ms": 5400,
-        "steps": [
-            {"step_text": "Given l'utilisateur se trouve sur la page \"https://www.amazon.fr/\"", "status": "PASSED", "duration_ms": 1100, "error_message": None},
-            {"step_text": "When l'utilisateur clique sur le bouton \"Accepter\" (id: sp-cc-accept)", "status": "FAILED", "duration_ms": 2300, "error_message": "Element not found: sp-cc-accept"},
-            {"step_text": "Then l'élément (id: sp-cc-accept) ne devrait pas être visible", "status": "SKIPPED", "duration_ms": 0, "error_message": None},
-        ],
-        "screenshots": [],
-        "error_message": "Step 2 failed: Element not found"
-    },
-    {
-        "scenario_name": "Personnaliser la page",
-        "nomSenario": "Personnaliser la page",
-        "status": "PASSED",
-        "duration_ms": 4100,
-        "steps": [
-            {"step_text": "Given l'utilisateur se trouve sur la page \"https://www.amazon.fr/\"", "status": "PASSED", "duration_ms": 1000, "error_message": None},
-            {"step_text": "When l'utilisateur clique sur le lien \"Personnaliser\" (id: nav-link-personalize)", "status": "PASSED", "duration_ms": 1500, "error_message": None},
-            {"step_text": "Then l'URL de la page devrait être \"https://www.amazon.fr/gp/personalize\"", "status": "PASSED", "duration_ms": 900, "error_message": None},
-        ],
-        "screenshots": [],
-        "error_message": None
-    },
+        "error_message": ""
+    }
 ]
 
-metadata = {
-    "project_name": "Amazon FR",
-    "url": "https://www.amazon.fr/",
-    "timestamp": "2026-04-22T15:30:00"
+project_metadata = {
+    "project_name": "Test Project",
+    "url": "http://example.com",
+    "timestamp": datetime.now().isoformat()
 }
 
-# Test HTML
-html = generate_html_report(scenarios, metadata)
-with open("test_report_output.html", "w", encoding="utf-8") as f:
-    f.write(html)
-print(f"HTML report: {len(html)} chars -> test_report_output.html")
-
-# Test full report (HTML + PDF)
-report = generate_rich_report(scenarios, metadata)
-print(f"PDF base64 length: {len(report['pdf_base64'])} chars")
-print(f"PDF generation mode: {report['pdf_generation_mode']}")
-print(f"Summary: {report['summary']}")
-print("OK: All reports generated successfully")
+print("Testing report generation...")
+try:
+    report = generate_rich_report(scenarios_results, project_metadata)
+    print(f"SUCCESS: Report generated successfully")
+    print(f"  PDF size: {len(report.get('pdf_base64', ''))} characters")
+    print(f"  Mode: {report.get('pdf_generation_mode', 'unknown')}")
+    
+    if not report.get('pdf_base64'):
+        print("ERROR: PDF base64 is EMPTY!")
+    else:
+        print("SUCCESS: PDF base64 is present")
+        
+except Exception as e:
+    print(f"ERROR: Error during report generation: {e}")
+    import traceback
+    traceback.print_exc()

@@ -923,11 +923,11 @@
                 Chrome s'ouvre, les tests défilent, tout se vérifie . . .
               </p>
               <button class="btn-run-tests" (click)="runFileSeleniumTests()" 
-                [disabled]="isRunningFileTests">
+                [disabled]="isRunningFileTests || !generatedSeleniumScript">
                 <span *ngIf="!isRunningFileTests">
                   <i class="bi bi-play-fill me-2"></i>Exécuter les tests
                 </span>
-                <span *ngIf="isRunningFileTests">
+                <span *ngif="isRunningFileTests">
                   <i class="bi bi-arrow-repeat spin-icon me-2"></i>Selenium en cours d'exécution...
                 </span>
               </button>
@@ -941,14 +941,6 @@
                 <span class="result-details" *ngIf="fileTestResults.results">
                   {{ fileTestResults.results.passed }} passé(s) / {{ fileTestResults.results.failed }} échoué(s)
                 </span>
-              </div>
-
-              <!-- Logs d'exécution -->
-              <div class="test-logs" *ngIf="fileTestLogs">
-                <div class="logs-header">
-                  <i class="bi bi-terminal me-2"></i>Logs d'exécution
-                </div>
-                <pre class="logs-content">{{ fileTestLogs }}</pre>
               </div>
 
               <!-- Bouton télécharger le rapport PDF -->
@@ -1036,10 +1028,30 @@
               
 
               <!-- Bouton télécharger le rapport -->
+
+
+              <div class="rapport-details mt-3" *ngIf="fileTestResults.scenarios_results?.length">
+                <div class="detail-header">
+                  <i class="bi bi-ui-checks-grid me-2"></i>Scenarios executes
+                </div>
+                <div class="detail-rows">
+                  <div class="detail-row" *ngFor="let scenario of fileTestResults.scenarios_results | slice:0:10">
+                    <div class="detail-item">
+                      <span class="detail-label">{{ $any(scenario).name || $any(scenario).scenario || $any(scenario).nomSenario || 'Scenario' }}</span>
+                      <span class="detail-badge" [ngClass]="$any(scenario).status === 'PASSED' ? 'badge-pass' : 'badge-fail'">{{ $any(scenario).status }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="rapport-download" *ngIf="fileTestPdfReport">
                 <button class="btn-download-full-report" (click)="downloadFileTestReport()">
                   <i class="bi bi-file-earmark-pdf-fill me-2"></i>Télécharger le rapport PDF
                 </button>
+              </div>
+              <div class="rapport-empty mt-3" *ngIf="!fileTestPdfReport">
+                <p class="empty-title">PDF non recu par l'interface</p>
+                <p class="empty-desc">Les resultats ci-dessus viennent de l'execution Selenium. Redemarrez le backend et le frontend, puis relancez les tests pour recuperer le PDF.</p>
               </div>
 
             </div>

@@ -364,10 +364,6 @@ public class ProjectService {
                 .build();
     }
 
-
-
-
-
     /**
      * Récupère les scénarios persistés d'un projet
      */
@@ -541,10 +537,10 @@ public class ProjectService {
                 return finalResponse;
             }
 
-            // Timeout de 15 minutes pour crawl + validation locators + génération IA.
+            // Timeout de 30 minutes pour crawl + validation locators + génération IA.
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(60000);
-            requestFactory.setReadTimeout(1800000); // 30 minutes (crawl + validation + génération)
+            requestFactory.setReadTimeout(1800000); 
             RestTemplate restTemplate = new RestTemplate(requestFactory);
             
             String pythonApiUrl = "";
@@ -613,7 +609,6 @@ public class ProjectService {
                     
                     String elementsJson = "";
                     try {
-                        // Récupération correcte de SCÉNARIOS ML ou PYTHON SCRIPT
                         elementsJson = (String) result.get("python_script");
                         if (elementsJson == null || elementsJson.isEmpty() || elementsJson.startsWith("# Erreur") || elementsJson.startsWith("# CodeT5 n'est pas")) {
                             elementsJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(elementsInteractifs);
@@ -631,16 +626,14 @@ public class ProjectService {
                         }
                     }
 
-                    // Enregistrer en base le résultat ML
                     TestScript testScript = TestScript.builder()
                             .project(project)
-                            .scriptContent(elementsJson) // Sauvegarder les vrais éléments bruts ou le script Py
+                            .scriptContent(elementsJson) 
                             .framework("selenium-ml")
                             .statut("CRAWLED_AND_ANALYZED")
                             .elementsCount(reliableElementsCount)
                             .build();
                     
-                    // Sauvgarder les scénarios ML dans le JSON "scenarios" 
                     testScript.setScenarios(objectMapper.writeValueAsString(scenariosObj));
                     testScriptRepository.save(testScript);
                     
@@ -650,10 +643,7 @@ public class ProjectService {
                     Map<String, Object> finalResponse = new HashMap<>();
                     finalResponse.put("message", result.get("message"));
 
-                    // Retourner immédiatement les scénarios ML au frontend (Random Forest + CodeT5)
                     List<Map<String, Object>> displayList = new ArrayList<>();
-
-                    // 1. Ajouter chaque scénario Gherkin ML individuellement
                     if (scenariosObj != null && !scenariosObj.isEmpty()) {
                         for (Map<String, String> sc : scenariosObj) {
                             Map<String, Object> scenarioMap = new HashMap<>(sc);
@@ -683,7 +673,7 @@ public class ProjectService {
     }
 
     /**
-     * Lance l'exécution des tests générés (Selenium réel ou BDD)
+     * Lance l'exécution des tests générés
      */
     public Map<String, Object> runTests(UUID id, UUID ownerId, List<String> selectedScenarioIds) {
         Project project = projectRepository.findByIdAndOwnerId(id, ownerId)
@@ -692,21 +682,19 @@ public class ProjectService {
         try {
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(60000);
-            requestFactory.setReadTimeout(3600000); // 60 minutes exécution max
+            requestFactory.setReadTimeout(3600000); // 1 heure
             RestTemplate restTemplate = new RestTemplate(requestFactory);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             if (project.getSpecificationType() == SpecificationType.LIEN_APPLICATION || project.getSpecificationType() == SpecificationType.CODE_FICHIER) {
-                // Phase 3: Real execution with Selenium + Gherkin
                 List<TestScript> scripts = testScriptRepository.findByProjectId(id);
                 if (scripts == null || scripts.isEmpty()) {
                     throw new ResourceNotFoundException("Aucun script Selenium trouvé pour ce projet");
                 }
                 TestScript script = scripts.get(0);
 
-                // Get scenarios from TestScript
                 String scenariosJson = script.getScenarios();
                 if (scenariosJson == null || scenariosJson.isEmpty()) {
                     throw new RuntimeException("Aucun scénario trouvé pour ce projet");
@@ -715,7 +703,6 @@ public class ProjectService {
                 List<Map<String, Object>> allScenarios = objectMapper.readValue(scenariosJson,
                     new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
 
-                // Filter to selected scenarios (or all if selectedScenarioIds is empty/null)
                 List<Map<String, Object>> selectedScenarios = allScenarios;
                 if (selectedScenarioIds != null && !selectedScenarioIds.isEmpty()) {
                     selectedScenarios = allScenarios.stream()
@@ -727,7 +714,6 @@ public class ProjectService {
                     throw new BadRequestException("Aucun scénario sélectionné pour l'exécution");
                 }
 
-                // Build execute request for Python API
                 Map<String, Object> executeRequest = new HashMap<>();
                 executeRequest.put("projectId", id.toString());
 
@@ -735,11 +721,6 @@ public class ProjectService {
                 if (project.getSpecificationType() == SpecificationType.CODE_FICHIER) {
                     urlToTest = writeDbBytesToTempFileUrl(project);
                 }
-                log.info("🔍 DEBUG URL INFO:");
-                log.info("   URL value: '{}'", urlToTest);
-                log.info("   URL type: {}", urlToTest != null ? urlToTest.getClass().getName() : "null");
-                log.info("   URL length: {}", urlToTest != null ? urlToTest.length() : 0);
-                log.info("   URL empty?: {}", urlToTest == null || urlToTest.isEmpty());
 
                 executeRequest.put("url", urlToTest);
                 executeRequest.put("focusObjective", project.getFocusOptionnel());
@@ -757,7 +738,7 @@ public class ProjectService {
                 String pythonApiUrl = "http://127.0.0.1:8000/api/execute-scenarios";
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(executeRequest, headers);
 
-                log.info("🚀 Lancement exécution Phase 3 (Gherkin) pour projet {}", id);
+                log.info("🚀 Lancement exécution Phase 3 pour projet {}", id);
                 ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
@@ -773,11 +754,6 @@ public class ProjectService {
                     Object durationObj = executionResult.get("duration_ms");
                     if (durationObj instanceof Number) {
                         durationMs = ((Number) durationObj).longValue();
-                    } else {
-                        Object summaryDurationObj = summary.get("duration_ms");
-                        if (summaryDurationObj instanceof Number) {
-                            durationMs = ((Number) summaryDurationObj).longValue();
-                        }
                     }
 
                     String scenarioResultsJson = null;
@@ -793,7 +769,6 @@ public class ProjectService {
                         logsJson = objectMapper.writeValueAsString(executionLogsObj);
                     }
 
-                    // Save execution result to database (required for reliable metrics after restart)
                     TestExecutionResult result = TestExecutionResult.builder()
                         .testScript(script)
                         .project(project)
@@ -811,7 +786,6 @@ public class ProjectService {
                     log.info("[OK] Execution results saved to database: {}", savedResult.getId());
                     executionResult.put("resultId", savedResult.getId().toString());
 
-                    // Mark project as executed
                     project.setStatut(ProjectStatus.TERMINE);
                     projectRepository.save(project);
 
@@ -820,7 +794,6 @@ public class ProjectService {
                     throw new RuntimeException("Erreur lors de l'exécution sur l'API Python Phase 3");
                 }
             } else {
-                // Legacy BDD mode
                 String fichierGenere = project.getFichierGenere();
                 if (fichierGenere == null || fichierGenere.isEmpty()) {
                     throw new BadRequestException("Aucun fichier de test généré pour ce projet.");
@@ -845,17 +818,13 @@ public class ProjectService {
         }
     }
 
-
-    /**
-     * Helper: Decode base64 PDF from execution result
-     */
     private byte[] decodePdfIfPresent(Map<String, Object> executionResult) {
         Object pdfBase64 = executionResult.get("report_base64_pdf");
         if (pdfBase64 != null && pdfBase64 instanceof String) {
             try {
                 return java.util.Base64.getDecoder().decode((String) pdfBase64);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid base64 PDF: {}", e.getMessage());
+                log.warn("Invalid base64 PDF");
                 return null;
             }
         }
@@ -878,7 +847,6 @@ public class ProjectService {
         metrics.put("lastExecutionResultId", null);
         metrics.put("hasPdfReport", false);
 
-        // Try to get latest execution result from database
         try {
             List<TestExecutionResult> results = testExecutionResultRepository.findByProjectIdOrderByExecutedAtDesc(projectId);
             if (!results.isEmpty()) {
@@ -891,7 +859,6 @@ public class ProjectService {
                     metrics.put("hasPdfReport", true);
                 }
 
-                // Parse scenario results JSON first (most detailed source)
                 String scenarioResultsJson = latest.getScenarioResults();
                 if (scenarioResultsJson != null && !scenarioResultsJson.isEmpty()) {
                     List<Map<String, Object>> scenarioResults = objectMapper.readValue(scenarioResultsJson,
@@ -906,13 +873,11 @@ public class ProjectService {
                             failed++;
                         }
                     }
-
                     metrics.put("total", scenarioResults.size());
                     metrics.put("passed", passed);
                     metrics.put("failed", failed);
                     metrics.put("lastExecutedAt", latest.getExecutedAt());
                 } else {
-                    // Fallback to persisted summary if detailed scenario list is absent.
                     String summaryJson = latest.getAssertionResults();
                     if (summaryJson != null && !summaryJson.isEmpty()) {
                         Map<String, Object> summary = objectMapper.readValue(summaryJson,
@@ -924,28 +889,22 @@ public class ProjectService {
                         metrics.put("lastExecutedAt", latest.getExecutedAt());
                     }
                 }
+                metrics.put("status", latest.getStatus());
             }
         } catch (Exception e) {
-            log.warn("Could not retrieve execution metrics from database: {}", e.getMessage());
+            log.warn("Could not retrieve execution metrics: {}", e.getMessage());
         }
 
         return metrics;
     }
 
-    /**
-     * Récupère le contenu du fichier uploadé d'un projet CODE_FICHIER en base64
-     */
     public Map<String, Object> getFileContent(UUID projectId, UUID userId) {
         Project project = projectRepository.findByIdAndOwnerId(projectId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé ou accès refusé"));
 
-        if (project.getSpecificationType() != SpecificationType.CODE_FICHIER) {
-            throw new BadRequestException("Ce projet n'est pas de type CODE_FICHIER");
-        }
-
         byte[] data = project.getFichierData();
         if (data == null || data.length == 0) {
-            throw new BadRequestException("Aucun fichier trouvé pour ce projet");
+            throw new BadRequestException("Aucun fichier trouvé");
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -956,21 +915,195 @@ public class ProjectService {
         return result;
     }
 
-    /**
-     * Lecture sûre d'un attribut WebElement (retourne "" si null ou exception)
-     */
-    private String safeGetAttr(WebElement el, String attr) {
+    public Map<String, Object> analyzeHtmlProxy(UUID projectId, String htmlContent, UUID userId) {
+        Project project = projectRepository.findByIdAndOwnerId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
+
+        String pythonApiUrl = "http://127.0.0.1:8000/api/analyze-html";
+        
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setReadTimeout(60000);
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("html_content", htmlContent);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(payload, headers);
+
         try {
-            String val = el.getAttribute(attr);
-            return val != null ? val.trim() : "";
+            ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> result = objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                return result;
+            }
+            throw new RuntimeException("Erreur API Python Analyse");
         } catch (Exception e) {
-            return "";
+            log.error("Error analyzeHtmlProxy: ", e);
+            throw new RuntimeException("Erreur lors de l'analyse : " + e.getMessage());
         }
     }
 
-    /**
-     * Crée une Map de scénario au format attendu par le frontend
-     */
+    public Map<String, Object> generateFileSeleniumProxy(UUID projectId, Map<String, Object> body, UUID userId) {
+        Project project = projectRepository.findByIdAndOwnerId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
+
+        String pythonApiUrl = "http://127.0.0.1:8000/api/generate-file-selenium";
+        
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setReadTimeout(120000);
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> result = objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                
+                String seleniumCode = (String) result.get("selenium_code");
+                if (seleniumCode != null) {
+                    List<TestScript> scripts = testScriptRepository.findByProjectId(projectId);
+                    TestScript script;
+                    if (scripts.isEmpty()) {
+                        script = TestScript.builder()
+                                .project(project)
+                                .framework("selenium-codet5")
+                                .statut("GENERE")
+                                .createdAt(LocalDateTime.now())
+                                .build();
+                    } else {
+                        script = scripts.get(0);
+                    }
+                    script.setScriptContent(seleniumCode);
+                    if (body.containsKey("tests")) {
+                        script.setScenarios(objectMapper.writeValueAsString(body.get("tests")));
+                    }
+                    testScriptRepository.save(script);
+                }
+                return result;
+            }
+            throw new RuntimeException("Erreur API Python Génération Script");
+        } catch (Exception e) {
+            log.error("Error generateFileSeleniumProxy: ", e);
+            throw new RuntimeException("Erreur lors de la génération : " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> runFileSeleniumProxy(UUID projectId, Map<String, Object> body, UUID userId) {
+        Project project = projectRepository.findByIdAndOwnerId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
+
+        String pythonApiUrl = "http://127.0.0.1:8000/api/run-file-selenium";
+        
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setReadTimeout(3600000);   // 1 heure
+        requestFactory.setConnectTimeout(60000);  // 1 minute
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> result = objectMapper.readValue(response.getBody(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                
+                TestScript script = null;
+                try {
+                    script = getScriptByProject(projectId, userId);
+                } catch (Exception e) {
+                    log.warn("Aucun script trouvé");
+                }
+
+                if (script == null) {
+                    Object scriptCode = body.get("script_code");
+                    String scriptContent = scriptCode != null && !scriptCode.toString().isBlank()
+                            ? scriptCode.toString()
+                            : "# Script Selenium execute sans generation persistante";
+                    script = TestScript.builder()
+                            .project(project)
+                            .scriptContent(scriptContent)
+                            .framework("selenium-codet5")
+                            .statut("GENERE_EXECUTION")
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    if (body.containsKey("tests")) {
+                        try {
+                            script.setScenarios(objectMapper.writeValueAsString(body.get("tests")));
+                        } catch (Exception e) {
+                            log.warn("Could not serialize tests for fallback script");
+                        }
+                    }
+                    script = testScriptRepository.save(script);
+                }
+
+                TestExecutionResult executionResult = TestExecutionResult.builder()
+                        .project(project)
+                        .testScript(script) 
+                        .status((String) result.getOrDefault("status", "COMPLETED"))
+                        .executedAt(LocalDateTime.now())
+                        .logs((String) result.getOrDefault("logs", ""))
+                        .executedBy(SecurityContextHolder.getContext().getAuthentication().getName())
+                        .build();
+
+                String pdfBase64 = (String) result.get("pdf_base64");
+                if (pdfBase64 == null) {
+                    pdfBase64 = (String) result.get("report_base64_pdf");
+                }
+                if (pdfBase64 != null) {
+                    executionResult.setReportPdfBlob(java.util.Base64.getDecoder().decode(pdfBase64));
+                    result.put("pdf_base64", pdfBase64);
+                    result.put("report_base64_pdf", pdfBase64);
+                }
+
+                if (result.get("results") != null) {
+                    try {
+                        String resultsJson = objectMapper.writeValueAsString(result.get("results"));
+                        executionResult.setAssertionResults(resultsJson);
+                    } catch (Exception e) {
+                        log.warn("Could not serialize test results");
+                    }
+                }
+
+                Object scenarioResults = result.get("scenarios_results");
+                if (scenarioResults == null) {
+                    scenarioResults = result.get("scenario_results");
+                }
+                if (scenarioResults != null) {
+                    try {
+                        executionResult.setScenarioResults(objectMapper.writeValueAsString(scenarioResults));
+                    } catch (Exception e) {
+                        log.warn("Could not serialize scenario results");
+                    }
+                }
+
+                testExecutionResultRepository.save(executionResult);
+                return result;
+            }
+            throw new RuntimeException("Erreur API Python Exécution");
+        } catch (Exception e) {
+            log.error("Error runFileSeleniumProxy: ", e);
+            throw new RuntimeException("Erreur lors de l'exécution : " + e.getMessage());
+        }
+    }
+
+    public java.util.Optional<TestExecutionResult> getTestExecutionResult(UUID resultId) {
+        return testExecutionResultRepository.findById(resultId);
+    }
+
+    public TestScript getScriptByProject(UUID projectId, UUID userId) {
+        List<TestScript> scripts = testScriptRepository.findByProjectId(projectId);
+        if (scripts.isEmpty()) {
+            throw new ResourceNotFoundException("Aucun script trouvé");
+        }
+        return scripts.get(0);
+    }
+
     private Map<String, Object> createScenario(String nom, String description, String resultatAttendu, String type, String gherkin) {
         Map<String, Object> sc = new HashMap<>();
         sc.put("nomSenario", nom);
@@ -979,93 +1112,5 @@ public class ProjectService {
         sc.put("type", type);
         sc.put("senario", gherkin);
         return sc;
-    }
-
-    /**
-     * Saves test execution results to database
-     * Called after test execution completes with detailed results
-     */
-    public TestExecutionResult saveExecutionResult(UUID testScriptId, UUID projectId, Map<String, Object> executionResult, String executedBy) {
-        try {
-            TestScript testScript = testScriptRepository.findById(testScriptId)
-                    .orElseThrow(() -> new ResourceNotFoundException("TestScript non trouvé"));
-
-            Project project = projectRepository.findById(projectId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
-
-
-            TestExecutionResult result = TestExecutionResult.builder()
-                    .testScript(testScript)
-                    .project(project)
-                    .status((String) executionResult.getOrDefault("status", "PENDING"))
-                    .executedAt(LocalDateTime.now())
-                    .executionDurationMs((Long) executionResult.getOrDefault("executionDurationMs", 0L))
-                    .scenarioResults(objectMapper.writeValueAsString(
-                            executionResult.getOrDefault("scenarios", new ArrayList<>())))
-                    .assertionResults(objectMapper.writeValueAsString(
-                            executionResult.getOrDefault("assertions", new HashMap<>())))
-                    .performanceMetrics(objectMapper.writeValueAsString(
-                            executionResult.getOrDefault("performanceMetrics", new HashMap<>())))
-                    .logs((String) executionResult.getOrDefault("logs", ""))
-                    .errorDetails((String) executionResult.getOrDefault("error", ""))
-                    .executedBy(executedBy)
-                    .build();
-
-            // Store PDF report as BLOB if available
-            String pdfReport = (String) executionResult.get("pdf_report");
-            if (pdfReport != null && !pdfReport.isEmpty()) {
-                try {
-                    result.setReportPdfBlob(java.util.Base64.getDecoder().decode(pdfReport));
-                } catch (Exception e) {
-                    log.warn("Failed to decode PDF report: {}", e.getMessage());
-                }
-            }
-
-            // Store screenshots as BLOBs if available
-            List<?> screenshots = (List<?>) executionResult.get("screenshots");
-            if (screenshots != null && !screenshots.isEmpty()) {
-                List<byte[]> screenshotBlobs = new ArrayList<>();
-                for (Object screenshot : screenshots) {
-                    try {
-                        if (screenshot instanceof String) {
-                            screenshotBlobs.add(java.util.Base64.getDecoder().decode((String) screenshot));
-                        }
-                    } catch (Exception e) {
-                        log.debug("Failed to decode screenshot: {}", e.getMessage());
-                    }
-                }
-                result.setScreenshotBlobs(screenshotBlobs);
-            }
-
-            TestExecutionResult saved = testExecutionResultRepository.save(result);
-            log.info("✓ Execution result saved: {} (status: {})", saved.getId(), saved.getStatus());
-
-            return saved;
-        } catch (Exception e) {
-            log.error("Error saving execution result: {}", e.getMessage());
-            throw new RuntimeException("Failed to save execution result: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Get execution history for a project
-     */
-    public List<TestExecutionResult> getExecutionHistory(UUID projectId) {
-        return testExecutionResultRepository.findByProjectIdOrderByExecutedAtDesc(projectId);
-    }
-
-    /**
-     * Get latest execution for a test script
-     */
-    public TestExecutionResult getLatestExecution(UUID testScriptId) {
-        return testExecutionResultRepository.findFirstByTestScriptIdOrderByExecutedAtDesc(testScriptId)
-                .orElseThrow(() -> new ResourceNotFoundException("No execution history found"));
-    }
-
-    /**
-     * Get a specific test execution result by ID
-     */
-    public java.util.Optional<TestExecutionResult> getTestExecutionResult(UUID resultId) {
-        return testExecutionResultRepository.findById(resultId);
     }
 }

@@ -172,48 +172,53 @@ export class ProjectService {
     );
   }
 
-  // Analyze HTML content via Python BeautifulSoup API
-  analyzeHtml(htmlContent: string): Observable<any> {
-    return this.httpClient.post<any>('http://localhost:8000/api/analyze-html', {
+  // Analyze HTML content via Java Backend (which proxies to Python and persists results)
+  analyzeHtml(projectId: string, htmlContent: string): Observable<any> {
+    return this.httpClient.post<any>(`${this.API_URL}/${projectId}/analyze-html`, {
       html_content: htmlContent
     }).pipe(
       timeout(60000),
       catchError(error => {
         console.error('Erreur lors de l\'analyse HTML:', error);
-        return throwError(() => new Error('Erreur d\'analyse HTML'));
+        return throwError(() => new Error('Erreur d\'analyse HTML via Backend'));
       })
     );
   }
 
-  // Generate Selenium script via CodeT5 model for CODE_FICHIER projects
-  generateFileSelenium(fields: any[], tests: any[], htmlContent: string): Observable<any> {
-    return this.httpClient.post<any>('http://localhost:8000/api/generate-file-selenium', {
+  // Generate Selenium script via Code T5 proxy (persists result in Backend)
+  generateFileSelenium(projectId: string, fields: any[], tests: any[], htmlContent: string, focusObjective: string = ''): Observable<any> {
+    return this.httpClient.post<any>(`${this.API_URL}/${projectId}/generate-file-selenium`, {
       fields: fields,
       tests: tests,
-      html_content: htmlContent
+      html_content: htmlContent,
+      focus_objective: focusObjective
     }).pipe(
-      timeout(120000), // 2 min timeout pour la génération CodeT5
+      timeout(120000),
       catchError(error => {
         console.error('Erreur lors de la génération du script Selenium:', error);
-        return throwError(() => new Error('Erreur de génération CodeT5'));
+        return throwError(() => new Error('Erreur de génération via Backend'));
       })
     );
   }
 
-  // Execute Selenium script on HTML file (visible Chrome)
-  runFileSelenium(scriptCode: string, htmlContentBase64: string, tests: any[] = [], fields: any[] = []): Observable<any> {
-    return this.httpClient.post<any>('http://localhost:8000/api/run-file-selenium', {
+  // Execute Selenium script on HTML file via Java Proxy (persists report in Backend)
+  runFileSelenium(projectId: string, scriptCode: string, htmlContentBase64: string, tests: any[] = [], fields: any[] = [], focusObjective: string = ''): Observable<any> {
+    return this.httpClient.post<any>(`${this.API_URL}/${projectId}/run-file-selenium`, {
       script_code: scriptCode,
       html_content: htmlContentBase64,
       tests: tests,
-      fields: fields
+      fields: fields,
+      focus_objective: focusObjective
     }).pipe(
-      timeout(600000), // 10 min timeout pour l'exécution de N tests Selenium
+      timeout(3600000),
       catchError(error => {
         console.error('Erreur lors de l\'exécution Selenium:', error);
-        return throwError(() => new Error('Erreur d\'exécution Selenium'));
+        const backendMessage = error?.error?.message
+          || error?.error?.error
+          || error?.message
+          || 'Erreur d\'exécution via Backend';
+        return throwError(() => new Error(backendMessage));
       })
     );
   }
 }
-
