@@ -22,6 +22,7 @@ import { ResetPasswordComponent } from './dashboard/pages/reset-password/reset-p
 import { DashboardAdminComponent } from './dashboard-Admin/dashboard-admin.component';
 import { ProfilePageComponent } from './dashboard-Admin/pages/profile-page.component';
 import { UserProfileComponent } from './dashboard/pages/profile/user-profile.component';
+import { PaginationComponent } from './shared/components/pagination/pagination.component';
 
 @NgModule({
   declarations: [
@@ -49,7 +50,8 @@ import { UserProfileComponent } from './dashboard/pages/profile/user-profile.com
     AppRoutingModule,
     CoreModule,
     DashboardAdminComponent,
-    ProfilePageComponent
+    ProfilePageComponent,
+    PaginationComponent
   ],
   providers: [],
   bootstrap: [AppComponent]

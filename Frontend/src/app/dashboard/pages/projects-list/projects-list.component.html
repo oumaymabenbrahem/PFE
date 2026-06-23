@@ -61,7 +61,7 @@
 
   <!-- Cartes des projets (Grid Layout) -->
   <div class="row g-4" *ngIf="!isLoading && projects.length > 0">
-    <div class="col-lg-4 col-md-6 col-sm-12" *ngFor="let project of projects">
+    <div class="col-lg-4 col-md-6 col-sm-12" *ngFor="let project of getPaginatedProjects()">
       <div class="project-card">
         <!-- En-tête de la carte -->
         <div class="card-header-custom">
@@ -216,8 +216,18 @@
       </div>
     </div>
   </div>
-</div>
 
+  <!-- Pagination -->
+  <div class="row mt-4 mb-5" *ngIf="!isLoading && projects.length > itemsPerPage">
+    <div class="col-12 d-flex justify-content-center">
+      <app-pagination 
+        [totalPages]="Math.ceil(projects.length / itemsPerPage)" 
+        [currentPage]="currentPage"
+        (pageChange)="onPageChange($event)">
+      </app-pagination>
+    </div>
+  </div>
+</div>
 <!-- MODALE DES DÉTAILS DU PROJET -->
 <div class="project-details-overlay" *ngIf="selectedProjectForDetails" (click)="closeProjectDetailsModal()">
   <div class="project-details-modal" (click)="$event.stopPropagation()" 

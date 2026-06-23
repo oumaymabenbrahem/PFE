@@ -100,6 +100,11 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   isUpdatingProject: boolean = false;
   selectedFile: File | null = null;
   
+  // Pagination
+  currentPage = 1;
+  itemsPerPage = 15;
+  Math = Math; // To use Math.ceil in template
+  
   private readonly executionMetricsStoragePrefix = 'execution_metrics_';
 
   private destroy$ = new Subject<void>();
@@ -321,6 +326,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             return dateB - dateA; // Ordre décroissant
           });
           this.isLoading = false;
+          this.currentPage = 1;
         },
         error: (error) => {
           console.error('Erreur lors du chargement des projets:', error);
@@ -518,6 +524,16 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     } else {
       this.successMessage = '';
     }
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = page;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  getPaginatedProjects(): ProjectResponse[] {
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    return this.projects.slice(startIndex, startIndex + this.itemsPerPage);
   }
   onGenerateTests(projectId: string): void {
     const project = this.projects.find(p => p.id === projectId);
