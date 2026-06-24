@@ -29,6 +29,7 @@ type MonthlySale = {
 export class DashboardAdminComponent implements OnInit {
   isDarkMode = false;
   isDefaultDashboard = true;
+  isLoading = true; // Nouveau : État de chargement
 
   metrics: MetricCard[] = [];
 
@@ -130,10 +131,13 @@ export class DashboardAdminComponent implements OnInit {
             change: (stats.totalProjectsGrowth >= 0 ? '+' : '-') + Math.abs(Math.round(stats.totalProjectsGrowth)) + '%' 
           }
         ];
-
         this.updateDistributionChart();
+        this.isLoading = false;
       },
-      error: (err) => console.error('Error loading dashboard stats', err)
+      error: (err) => {
+        console.error('Error loading dashboard stats', err);
+        this.isLoading = false;
+      }
     });
   }
 

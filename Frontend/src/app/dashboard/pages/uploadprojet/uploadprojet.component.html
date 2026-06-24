@@ -35,18 +35,6 @@
 
   <!-- Project Form -->
   <div class="form-container" [class.show]="showForm">
-    <!-- Messages d'erreur et de succès -->
-    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-      <i class="bi bi-check-circle"></i>
-      {{ successMessage }}
-      <button type="button" class="btn-close" (click)="successMessage = ''"></button>
-    </div>
-
-    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-      <i class="bi bi-exclamation-circle"></i>
-      {{ errorMessage }}
-      <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
-    </div>
 
     <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="project-form">
 

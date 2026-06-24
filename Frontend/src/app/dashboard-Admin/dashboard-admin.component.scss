@@ -205,6 +205,52 @@
   display: grid;
   grid-template-columns: minmax(0, 1.42fr) minmax(390px, 1fr);
   gap: 30px;
+  transition: opacity 0.4s ease, filter 0.4s ease;
+
+  &.content-loading {
+    opacity: 0.4;
+    filter: blur(4px);
+    pointer-events: none;
+  }
+}
+
+.admin-loading-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 1.5rem;
+
+  p {
+    color: #465fff;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+    animation: pulse 1.5s infinite;
+  }
+}
+
+.elegant-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(70, 95, 255, 0.1);
+  border-top: 3px solid #465fff;
+  border-radius: 50%;
+  animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .dashboard-main {

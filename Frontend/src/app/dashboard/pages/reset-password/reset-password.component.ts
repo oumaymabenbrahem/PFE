@@ -67,11 +67,13 @@ export class ResetPasswordComponent implements OnInit {
 
     if (this.password.length < 8) {
       this.errorMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+      console.warn('[RESET PASSWORD]', this.errorMessage);
       return;
     }
 
     if (this.password !== this.confirmPassword) {
       this.errorMessage = 'Les mots de passe ne correspondent pas.';
+      console.warn('[RESET PASSWORD]', this.errorMessage);
       return;
     }
 
@@ -81,11 +83,13 @@ export class ResetPasswordComponent implements OnInit {
       next: () => {
         this.isLoading = false;
         this.successMessage = 'Mot de passe réinitialisé avec succès ! Redirection...';
+        console.log('[RESET PASSWORD] Succès:', this.successMessage);
         setTimeout(() => this.router.navigate(['/login']), 2000);
       },
       error: (err: Error) => {
         this.isLoading = false;
         this.errorMessage = err.message || 'Erreur lors de la réinitialisation.';
+        console.error('[RESET PASSWORD] Erreur:', this.errorMessage);
       }
     });
   }

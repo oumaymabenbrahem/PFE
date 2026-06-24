@@ -124,7 +124,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
                 this.showGentleSuccess();
                 setTimeout(() => {
                         this.redirectAfterLogin(authResponse.user);
-                }, 3500);
+                }, 800);
               },
               error: (error: any) => {
                 console.error('Google login error:', error);
@@ -327,10 +327,10 @@ export class SignInComponent implements OnInit, AfterViewInit {
           console.log('Login successful:', response.user.email);
           this.showGentleSuccess();
           
-          // Redirection après l'animation
+          // Redirection après l'animation (réduit pour plus de réactivité)
           setTimeout(() => {
             this.redirectAfterLogin(response.user);
-          }, 3500);
+          }, 800);
         },
         error: (error: any) => {
           console.error('Login error:', error);
@@ -386,7 +386,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
           this.showGentleSuccess();
           setTimeout(() => {
             this.redirectAfterLogin(authResponse.user);
-          }, 3500);
+          }, 800);
         },
         error: (err: any) => {
           console.error('GitHub login error:', err);
@@ -461,8 +461,7 @@ export class SignInComponent implements OnInit, AfterViewInit {
       if (signupDiv) signupDiv.style.display = 'none';
       if (dividerDiv) dividerDiv.style.display = 'none';
 
-      this.successMessage.classList.add('show');
-      this.triggerSuccessGlow();
+      console.log('[UI SUCCESS] Login successful. Showing progress in console...');
     }, 300);
 
     setTimeout(() => {

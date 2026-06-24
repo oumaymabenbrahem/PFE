@@ -87,7 +87,7 @@
 }
 
 .panel {
-	min-height: 450px;
+	height: 600px; // Hauteur fixe pour éviter de rallonger la page entière
 	display: flex;
 	flex-direction: column;
 	min-width: 0;

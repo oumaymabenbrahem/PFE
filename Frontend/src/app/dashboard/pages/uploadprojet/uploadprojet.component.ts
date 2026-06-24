@@ -186,6 +186,7 @@ export class UploadprojetComponent implements OnInit {
       next: (response: ProjectResponse) => {
         this.isLoading = false;
         this.successMessage = `Projet "${response.nom}" créé avec succès!`;
+        console.log('[SUCCESS]', this.successMessage);
         this.resetForm();
         
         // Attendre 2 secondes avant de rediriger
@@ -196,7 +197,7 @@ export class UploadprojetComponent implements OnInit {
       error: (error: Error) => {
         this.isLoading = false;
         this.errorMessage = error.message;
-        console.error('Erreur complète:', error);
+        console.error('[ERROR] Erreur complète:', error);
       }
     });
   }

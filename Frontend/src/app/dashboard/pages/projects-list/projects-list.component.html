@@ -9,28 +9,6 @@
     </div>
   </div>
 
-  <!-- Messages de succès/erreur -->
-  <div class="row mb-4" *ngIf="successMessage">
-    <div class="col-12">
-      <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle me-2"></i>
-        {{ successMessage }}
-        <button type="button" class="btn-close" (click)="clearMessage('success')">
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="row mb-4" *ngIf="errorMessage">
-    <div class="col-12">
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-circle me-2"></i>
-        {{ errorMessage }}
-        <button type="button" class="btn-close" (click)="clearMessage('error')">
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Chargement -->
   <div class="row" *ngIf="isLoading">
@@ -594,13 +572,6 @@
           </button>
         </div>
 
-        <div *ngIf="isJiraConnected && (pushMessage || pushError)" class="mt-3">
-          <div class="alert alert-sm mb-0 p-2 text-center" [ngClass]="pushError ? 'alert-danger' : 'alert-success'"
-            style="font-size: 0.85rem;">
-            <i class="bi me-2" [ngClass]="pushError ? 'bi-exclamation-octagon' : 'bi-check-circle'"></i>
-            {{ pushMessage || pushError }}
-          </div>
-        </div>
       </div>
 
       
@@ -852,10 +823,10 @@
                       <td>
                         <span class="badge" [ngClass]="{
                              'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || scenario.type === 'Validation',
-                             'bg-warning text-dark': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
+                             'bg-warning': scenario.type === 'Edge Case' || scenario.type === 'Cas limites',
                              'bg-danger': scenario.type === 'Négatif',
-                             'bg-info': scenario.type === 'Navigation',
-                             'bg-primary': scenario.type === 'Performance'
+                             'bg-info': scenario.type === 'Navigation' || scenario.type === 'Accessibilité',
+                             'bg-primary': scenario.type === 'Performance' || scenario.type === 'UI/UX'
                            }">
                           {{ scenario.type || 'Fonctionnel' }}
                         </span>
@@ -1189,37 +1160,39 @@
         </div>
 
         <!-- Tableau des scénarios -->
-        <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
-          <table class="table table-dark table-hover align-middle mb-0 wt-scenarios-table" style="font-size: 0.9rem;">
-            <thead style="position: sticky; top: 0; background: #1a1a2e; z-index: 1;">
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+          <table class="table table-hover align-middle mb-0 wt-scenarios-table" style="font-size: 0.9rem;">
+            <thead>
               <tr>
-                <th style="width: 20%;">Type</th>
+                <th style="width: 15%;">Type</th>
                 <th style="width: 25%;">Nom du Scénario</th>
-                <th style="width: 55%;">Détails / Gherkin</th>
+                <th style="width: 60%;">Détails / Gherkin</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let sc of generatedScenarios; let i = index">
                 <td>
                   <span class="badge" [ngClass]="{
-                    'bg-success':   sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
-                    'bg-warning text-dark': sc.type === 'Edge Case' || sc.type === 'Cas limites',
+                    'bg-success':   sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle' || sc.type === 'Validation',
+                    'bg-warning': sc.type === 'Edge Case' || sc.type === 'Cas limites',
                     'bg-danger':    sc.type === 'Négatif',
-                    'bg-info text-dark': sc.type === 'Selenium Script',
-                    'bg-primary':   sc.type === 'Performance' || !sc.type
+                    'bg-info':      sc.type === 'Selenium Script' || sc.type === 'Navigation' || sc.type === 'Accessibilité',
+                    'bg-primary':   sc.type === 'Performance' || sc.type === 'UI/UX' || !sc.type
                   }">
                     <i class="bi me-1" [ngClass]="{
-                      'bi-check-circle': sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle',
-                      'bi-exclamation-triangle': sc.type === 'Edge Case',
+                      'bi-check-circle': sc.type === 'Fonctionnel' || sc.type === 'Fonctionnelle' || sc.type === 'Validation',
+                      'bi-exclamation-triangle': sc.type === 'Edge Case' || sc.type === 'Cas limites',
                       'bi-x-circle': sc.type === 'Négatif',
-                      'bi-code-slash': sc.type === 'Selenium Script',
-                      'bi-lightning': sc.type === 'Performance'
+                      'bi-code-slash': sc.type === 'Selenium Script' || sc.type === 'Navigation',
+                      'bi-lightning': sc.type === 'Performance',
+                      'bi-person-badge': sc.type === 'Accessibilité',
+                      'bi-palette': sc.type === 'UI/UX'
                     }"></i>
                     {{ sc.type || 'Fonctionnel' }}
                   </span>
                 </td>
                 <td>
-                  <strong class="text-light">{{ sc.nomSenario }}</strong>
+                  <strong>{{ sc.nomSenario }}</strong>
                   <small class="scenario-description d-block mt-1" *ngIf="sc.description">{{ sc.description }}</small>
                   <small class="scenario-expected d-block mt-1" *ngIf="sc.resultatAttendu">
                     <i class="bi bi-arrow-right me-1"></i>{{ sc.resultatAttendu }}
@@ -1257,7 +1230,6 @@
         <span class="dot maximize-dot"></span>
       </div>
       <div class="terminal-tabs d-flex ms-3">
-        <button class="terminal-tab-btn" [class.active]="terminalTab === 'terminal'" (click)="setTerminalTab('terminal')">Terminal</button>
         <button class="terminal-tab-btn" [class.active]="terminalTab === 'scripts'" (click)="setTerminalTab('scripts')">Scripts</button>
         <button class="terminal-tab-btn" [class.active]="terminalTab === 'results'" (click)="setTerminalTab('results')">Résultats</button>
       </div>
@@ -1266,27 +1238,6 @@
     
     <!-- Body -->
     <div class="terminal-body" style="overflow-y: auto;">
-      <!-- ONGLET TERMINAL -->
-      <div *ngIf="terminalTab === 'terminal'">
-        <div class="terminal-target mb-3">
-          <span class="text-secondary">AI-Tester$ target-url:</span> <span class="text-info">{{ selectedTerminalProject.specificationContenu }}</span>
-        </div>
-        
-        <div class="terminal-lines">
-          <div *ngFor="let step of terminalSteps" class="terminal-line" [class.success]="step.status === 'done'" [class.active]="step.status === 'active'">
-            <span class="step-icon" *ngIf="step.status === 'done'">✅</span>
-            <span class="step-icon spinner-border spinner-border-sm text-success" *ngIf="step.status === 'active'"></span>
-            <span class="step-text">{{ step.text }}</span>
-          </div>
-        </div>
-        
-        <div class="terminal-progress mt-4" *ngIf="terminalProgress > 0">
-          <div class="progress" style="height: 10px; background-color: #2F334D; border-radius: 4px;">
-            <div class="progress-bar bg-success" role="progressbar" [style.width.%]="terminalProgress" [attr.aria-valuenow]="terminalProgress" aria-valuemin="0" aria-valuemax="100"></div>
-          </div>
-          <div class="text-end text-success mt-1" style="font-family: monospace; font-size: 0.85rem;">{{ terminalProgress }}%</div>
-        </div>
-      </div>
 
       <!-- ONGLET SCRIPTS -->
       <div *ngIf="terminalTab === 'scripts'" class="scripts-pane">
@@ -1341,7 +1292,7 @@
                                 <i class="bi bi-clipboard me-1"></i> Copier
                             </button>
                         </div>
-                        <pre class="bg-black text-light p-3 m-0 rounded-bottom" style="white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; border: 1px solid #1f2937;"><code>{{ sc.senario }}</code></pre>
+                        <pre class="p-3 m-0 rounded-bottom" style="white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; border: 1px solid #dcd9c6; background-color: #fdfbf7; color: #2c3e50;"><code>{{ sc.senario }}</code></pre>
                      </div>
                  </div>
              </div>
@@ -1381,16 +1332,9 @@
                           <span class="fw-bold font-monospace"><i class="bi me-2" [ngClass]="{'bi-check-circle-fill text-success': det.status === 'PASSED', 'bi-x-circle-fill text-danger': det.status === 'FAILED'}"></i> {{ det.test }}</span>
                           <span class="text-secondary small">{{ det.duration }}s</span>
                       </div>
-                      <div *ngIf="det.status === 'FAILED' && det.error" class="text-danger mt-2 small p-2 font-monospace" style="background-color: rgba(220,53,69,0.1); border-left: 2px solid #dc3545;">
-                         {{ det.error }}
-                      </div>
                   </div>
               </div>
               
-              <div *ngIf="testResults.output" class="mt-4">
-                  <h6 class="text-secondary mb-2 font-monospace">Logs Brut Pytest:</h6>
-                  <pre class="bg-black p-3 text-secondary rounded" style="font-size: 0.8rem; border: 1px solid #1f2937;">{{ testResults.output }}</pre>
-              </div>
           </div>
           
           <div *ngIf="!isExecutingTests && testResults && testResults.error" class="text-center text-danger py-4">

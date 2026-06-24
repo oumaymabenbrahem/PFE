@@ -420,28 +420,33 @@
   }
 
   &.bg-info {
-    background-color: #e0f7fa !important; // Bleu pastel très doux
-    color: #006064 !important; // Texte bleu foncé pour le contraste
+    background-color: #cff4fc !important; // Cyan pastel plus soutenu
+    color: #055160 !important; // Texte sombre
+    border: 1px solid #b6effb !important;
   }
 
   &.bg-warning {
-    background-color: #fff9c4 !important; // Jaune pastel
-    color: #827717 !important; // Texte olive/doré foncé
+    background-color: #fff3cd !important; // Jaune pastel plus marqué
+    color: #664d03 !important; // Texte brun/doré foncé
+    border: 1px solid #ffecb5 !important;
   }
 
   &.bg-success {
-    background-color: #e8f5e9 !important; // Vert pastel
-    color: #1b5e20 !important; // Texte vert foncé
+    background-color: #d1e7dd !important; // Vert pastel un peu plus marqué
+    color: #0f5132 !important; // Texte plus foncé
+    border: 1px solid #badbcc !important;
   }
 
   &.bg-primary {
-    background-color: #e3f2fd !important; // Indigo/Bleu très clair
-    color: #1a237e !important; // Texte indigo foncé
+    background-color: #cfe2ff !important; // Bleu pastel
+    color: #084298 !important; // Indigo foncé
+    border: 1px solid #b6d4fe !important;
   }
 
   &.bg-danger {
-    background-color: #ffebee !important; // Rouge pastel
-    color: #b71c1c !important; // Texte rouge foncé
+    background-color: #f8d7da !important; // Rouge pastel plus visible
+    color: #842029 !important; // Texte rouge très foncé
+    border: 1px solid #f5c2c7 !important;
   }
 }
 
@@ -2502,64 +2507,72 @@
 
     .wt-scenarios-table {
       table-layout: fixed;
+      background-color: #fffdf5 !important;
+      border: 1px solid #d8d8d0;
 
       thead th {
-        color: #f8fafc;
+        background-color: #f1f1e6 !important;
+        color: #4a4a4a !important;
         font-weight: 700;
         letter-spacing: 0.2px;
+        border-bottom: 2px solid #d8d8d0;
+        position: sticky;
+        top: 0;
+        z-index: 1;
       }
 
       tbody td {
         vertical-align: top;
         height: auto;
+        color: #2c3e50 !important;
+        border-bottom: 1px solid #eee;
       }
 
       .gherkin-scenario-cell {
         overflow: visible;
       }
 
-      strong.text-light {
-        color: #ffffff !important;
+      strong {
+        color: #2c3e50 !important;
         font-size: 1rem;
         line-height: 1.45;
       }
 
       .scenario-description {
         display: block;
-        color: #e8ecff !important;
-        font-size: 0.94rem;
-        line-height: 1.6;
+        color: #5d6d7e !important;
+        font-size: 0.9rem;
+        line-height: 1.5;
         white-space: normal;
-        margin-top: 0.5rem;
+        margin-top: 0.4rem;
         opacity: 1;
-        font-weight: 500;
-        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+        font-weight: 400;
       }
 
       .scenario-expected {
-        color: #7ee787 !important;
-        font-size: 0.82rem;
+        color: #198754 !important;
+        font-size: 0.8rem;
         line-height: 1.4;
         white-space: normal;
+        background: rgba(25, 135, 84, 0.05);
+        padding: 4px 8px;
+        border-radius: 4px;
       }
 
       .wt-gherkin-code {
         margin: 0;
-        padding: 0.5rem;
-        border-radius: 0.375rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(0, 0, 0, 0.4);
-        color: #a8d8a8;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dcd9c6 !important;
+        background: #fdfbf7 !important;
+        color: #2c3e50 !important;
         font-family: 'Courier New', monospace;
-        font-size: 0.78rem;
+        font-size: 0.85rem;
         line-height: 1.5;
         white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        overflow-x: visible;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        max-height: 300px;
         overflow-y: auto;
-        max-height: 220px;
-        min-height: 96px;
       }
     }
   }

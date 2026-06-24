@@ -50,7 +50,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   terminalSteps: any[] = [];
   terminalProgress: number = 0;
   terminalInterval: any;
-  terminalTab: 'terminal' | 'scripts' | 'results' = 'terminal';
+  terminalTab: 'terminal' | 'scripts' | 'results' = 'scripts';
   terminalScripts: any[] = [];
   testResults: any = null;
   isExecutingTests: boolean = false;
@@ -457,6 +457,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
         next: () => {
           this.isDeleting = false;
           this.successMessage = 'Projet supprimé avec succès!';
+          console.log('[SUCCESS]', this.successMessage);
           this.closeDeleteConfirmation();
           this.loadProjects(); // Recharge et réapplique le tri
           setTimeout(() => this.successMessage = '', 3000);
@@ -465,6 +466,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           this.isDeleting = false;
           console.error('Erreur lors de la suppression:', error);
           this.errorMessage = 'Erreur lors de la suppression du projet.';
+          console.error('[ERROR]', this.errorMessage);
         }
       });
   }
@@ -1305,8 +1307,10 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           
           if (normalized.status === 'PASSED') {
             this.successMessage = '✅ Tests exécutés avec succès ! Chrome a testé le fichier.';
+            console.log('[SUCCESS]', this.successMessage);
           } else {
-            this.errorMessage = '❌ Tests échoués. Consultez les logs ci-dessous.';
+            this.errorMessage = '❌ Tests échoués. Consultez la console pour plus de détails.';
+            console.error('[ERROR]', this.errorMessage);
           }
           setTimeout(() => { this.successMessage = ''; this.errorMessage = ''; }, 5000);
         },
@@ -1316,6 +1320,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           this.fileTestResults = { status: 'ERROR', logs: err.message };
           this.fileTestLogs = err.message;
           this.errorMessage = 'Erreur lors de l\'exécution Selenium: ' + err.message;
+          console.error('[ERROR]', this.errorMessage);
           setTimeout(() => this.errorMessage = '', 5000);
         }
       });

@@ -306,7 +306,7 @@ export class SignUpComponent implements OnInit, AfterViewInit {
 
     setTimeout(() => {
       this.form.style.display = 'none';
-      this.successMessage.classList.add('show');
+      console.log('[UI SUCCESS] Account created successfully. Redirecting...');
     }, 300);
 
     setTimeout(() => {

@@ -40,7 +40,12 @@
     <router-outlet></router-outlet>
 
     <ng-container *ngIf="isDefaultDashboard">
-      <section class="dashboard-layout" aria-label="Tableau de bord admin">
+      <div *ngIf="isLoading" class="admin-loading-overlay">
+        <div class="elegant-spinner"></div>
+        <p>Chargement des statistiques...</p>
+      </div>
+
+      <section class="dashboard-layout" [class.content-loading]="isLoading" aria-label="Tableau de bord admin">
         <div class="dashboard-main">
           <section class="metrics-grid" aria-label="Indicateurs principaux">
             <article class="metric-card" *ngFor="let metric of metrics">

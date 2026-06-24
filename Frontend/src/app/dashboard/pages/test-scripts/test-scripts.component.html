@@ -56,14 +56,10 @@
 					<p>Génération en cours . . .</p>
 				</div>
 
-				<div *ngIf="errorMessage" class="error-banner">
-					<span class="error-icon">⚠</span>
-					{{ errorMessage }}
-				</div>
 
 				<pre *ngIf="generatedCode && !isGenerating"><code>{{ generatedCode }}</code></pre>
 
-				<div *ngIf="!generatedCode && !isGenerating && !errorMessage" class="empty-state">
+				<div *ngIf="!generatedCode && !isGenerating" class="empty-state">
 					<p>Le script généré apparaîtra ici</p>
 				</div>
 			</article>

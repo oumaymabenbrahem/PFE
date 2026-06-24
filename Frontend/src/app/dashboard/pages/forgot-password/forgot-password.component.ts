@@ -27,6 +27,7 @@ export class ForgotPasswordComponent {
 
     if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
       this.errorMessage = 'Veuillez saisir une adresse e-mail valide.';
+      console.warn('[FORGOT PASSWORD]', this.errorMessage);
       return;
     }
 
@@ -36,6 +37,7 @@ export class ForgotPasswordComponent {
       next: () => {
         this.isLoading = false;
         this.submitted = true;
+        console.log('[FORGOT PASSWORD] Succès: Code envoyé à', normalizedEmail);
         // Rediriger vers la page de vérification OTP après 500ms
         setTimeout(() => {
           this.router.navigate(['/forgot-password/verification'], {
@@ -46,6 +48,7 @@ export class ForgotPasswordComponent {
       error: (err: Error) => {
         this.isLoading = false;
         this.errorMessage = err.message || 'Une erreur est survenue. Veuillez réessayer.';
+        console.error('[FORGOT PASSWORD] Erreur:', this.errorMessage);
       }
     });
   }

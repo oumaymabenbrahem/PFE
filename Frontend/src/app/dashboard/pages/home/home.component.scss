@@ -39,6 +39,43 @@ img {
 
 .swiper-slide {
   opacity: 1 !important;
+  height: auto;
+}
+
+// Fixed height for banner images to align titles
+.banner-item {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  
+  .image-holder {
+    height: 400px; // Ajusté pour éviter de couper tout en restant compact
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: transparent;
+    padding: 10px;
+    
+    img {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+  }
+  
+  .banner-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    
+    .element-title {
+      min-height: 3em; // Garantit que les titres commencent à la même hauteur
+      display: flex;
+      align-items: flex-start;
+    }
+  }
 }
 
 
