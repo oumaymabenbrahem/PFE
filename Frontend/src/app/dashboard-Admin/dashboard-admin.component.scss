@@ -89,6 +89,7 @@
   gap: 28px;
   min-width: 0;
   padding: 22px 28px 36px;
+  position: relative; // Nécessaire pour l'overlay de chargement
 }
 
 .topbar {
@@ -215,16 +216,20 @@
 }
 
 .admin-loading-overlay {
-  position: absolute;
+  position: fixed; // Changé de absolute à fixed
   top: 50%;
-  left: 50%;
+  left: calc(50% + 125px); // Ajusté pour compenser la sidebar (250px / 2)
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 9999; // Au-dessus de tout
   gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.7); // Léger fond pour lisibilité
+  padding: 2rem;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
 
   p {
     color: #465fff;
