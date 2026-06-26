@@ -346,9 +346,6 @@ def _try_heal_and_find(
     # --- 1. Try the original selector first ---
     try:
         result = original_find(by, value)
-        # find_elements returns a list — only consider it "found" if non-empty
-        if find_multiple and isinstance(result, list) and len(result) == 0:
-            raise NoSuchElementException(f"No elements found with {by}={value}")
         return result
     except (NoSuchElementException, InvalidSelectorException) as original_error:
         logger.info(
@@ -369,8 +366,6 @@ def _try_heal_and_find(
         )
         try:
             result = original_find(cached_by, cached_value)
-            if find_multiple and isinstance(result, list) and len(result) == 0:
-                raise NoSuchElementException("Cached selector returned empty")
             return result
         except (NoSuchElementException, InvalidSelectorException):
             # Cached selector also broken — remove from cache and try LLM again

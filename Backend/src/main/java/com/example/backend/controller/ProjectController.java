@@ -243,10 +243,10 @@ public class ProjectController {
 
     // Récupérer les scénarios persistés d'un projet
     @GetMapping("/{id}/scenarios")
-    public ResponseEntity<List<java.util.Map<String, Object>>> getScenarios(@PathVariable UUID id) {
+    public ResponseEntity<?> getProjectScenarios(@PathVariable UUID id) {
         try {
             UUID userId = getCurrentUserId();
-            log.info("Récupération des scénarios pour le projet: {} par: {}", id, userId);
+            log.info("Récupération scénarios pour projet: {} par: {}", id, userId);
 
             List<java.util.Map<String, Object>> scenarios = projectService.getProjectScenarios(id, userId);
             return ResponseEntity.ok(scenarios);
@@ -255,6 +255,24 @@ public class ProjectController {
         } catch (Exception e) {
             log.error("Erreur lors de la récupération des scénarios", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Met à jour les scénarios persistés d'un projet
+     */
+    @PutMapping("/{id}/scenarios")
+    public ResponseEntity<?> updateScenarios(@PathVariable UUID id, @RequestBody List<Map<String, Object>> scenarios) {
+        try {
+            UUID userId = getCurrentUserId();
+            projectService.updateProjectScenarios(id, userId, scenarios);
+            return ResponseEntity.ok(new SuccessResponse("Scénarios mis à jour avec succès"));
+        } catch (com.example.backend.exception.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Erreur lors de la mise à jour des scénarios", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Erreur: " + e.getMessage()));
         }
     }
 

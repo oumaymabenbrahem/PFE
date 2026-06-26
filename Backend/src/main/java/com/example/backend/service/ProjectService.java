@@ -1113,4 +1113,31 @@ public class ProjectService {
         sc.put("senario", gherkin);
         return sc;
     }
+
+    /**
+     * Met à jour les scénarios d'un projet
+     */
+    public void updateProjectScenarios(UUID id, UUID ownerId, List<Map<String, Object>> scenarios) {
+        Project project = projectRepository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé ou accès refusé"));
+
+        List<TestScript> scripts = testScriptRepository.findByProjectId(id);
+        if (scripts.isEmpty()) {
+            throw new ResourceNotFoundException("Aucun script trouvé pour ce projet");
+        }
+
+        // On prend le script le plus récent
+        TestScript latestScript = scripts.stream()
+                .max(Comparator.comparing(TestScript::getCreatedAt))
+                .orElse(scripts.get(0));
+
+        try {
+            latestScript.setScenarios(objectMapper.writeValueAsString(scenarios));
+            testScriptRepository.save(latestScript);
+            log.info("Scénarios mis à jour pour le projet: {}", id);
+        } catch (Exception e) {
+            log.error("Erreur lors de la mise à jour des scénarios: ", e);
+            throw new RuntimeException("Erreur de sauvegarde des scénarios");
+        }
+    }
 }

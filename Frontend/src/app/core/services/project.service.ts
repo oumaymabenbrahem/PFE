@@ -44,7 +44,6 @@ export class ProjectService {
   }
 
   // Récupèrer tous les projets de l'utilisateur connecté
-   
   getMyProjects(): Observable<ProjectResponse[]> {
     return this.httpClient.get<ProjectResponse[]>(this.API_URL)
       .pipe(
@@ -55,9 +54,7 @@ export class ProjectService {
       );
   }
 
-
    // Récupèrer les détails d'un projet
-   
   getproject(id: string): Observable<ProjectResponse> {
     return this.httpClient.get<ProjectResponse>(`${this.API_URL}/${id}`)
       .pipe(
@@ -69,7 +66,6 @@ export class ProjectService {
   }
 
   // Met à jour un projet
-   
   updateProject(id: string, projectRequest: ProjectRequest): Observable<ProjectResponse> {
     return this.httpClient.put<ProjectResponse>(`${this.API_URL}/${id}`, projectRequest)
       .pipe(
@@ -81,7 +77,6 @@ export class ProjectService {
   }
 
   // Supprimer un projet
-   
   deleteProject(id: string): Observable<any> {
     return this.httpClient.delete(`${this.API_URL}/${id}`)
       .pipe(
@@ -142,9 +137,14 @@ export class ProjectService {
     return this.httpClient.get<any[]>(`${this.API_URL}/${id}/scenarios`);
   }
 
+  // Mettre à jour les scénarios d'un projet
+  updateScenarios(projectId: string, scenarios: any[]): Observable<any> {
+    return this.httpClient.put<any>(`${this.API_URL}/${projectId}/scenarios`, scenarios);
+  }
+
   // Lancer l'exécution des tests
-  runTests(id: string): Observable<any> {
-    return this.httpClient.post<any>(`${this.API_URL}/${id}/run-tests`, {}).pipe(
+  runTests(id: string, selectedScenarioIds: string[] = []): Observable<any> {
+    return this.httpClient.post<any>(`${this.API_URL}/${id}/run-tests`, { selectedScenarioIds }).pipe(
       catchError(error => {
         console.error('Erreur lors de l\'exécution des tests:', error);
         return throwError(() => new Error('Erreur lors de l\'exécution des tests'));

@@ -36,6 +36,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   jiraProjectKey = '';
   isJiraProjectDropdownOpen = false;
   jiraUserStoryId = '';
+  allScenariosSelected = true;
   isPushingToJira = false;
   pushMessage = '';
   pushError = '';
@@ -293,7 +294,21 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     this.isJiraProjectDropdownOpen = false;
     this.pushMessage = '';
     this.pushError = '';
-    this.jiraService.pushTests(projectKey, this.jiraUserStoryId, this.generatedScenarios)
+
+    // Filtre pour n'envoyer que les scénarios sélectionnés (si spécifié pour User Story)
+    let scenariosToPush = this.generatedScenarios;
+    if (this.selectedUserStoryProject?.specificationType === 'USER_STORY') {
+      scenariosToPush = this.generatedScenarios.filter(s => s.selected);
+    }
+    
+    if (scenariosToPush.length === 0) {
+      this.isPushingToJira = false;
+      this.pushError = 'Aucun scénario sélectionné pour l\'envoi.';
+      setTimeout(() => this.pushError = '', 5000);
+      return;
+    }
+
+    this.jiraService.pushTests(projectKey, this.jiraUserStoryId, scenariosToPush)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
@@ -565,7 +580,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           this.generatingId = null;
           this.generatedScenarios = (response.scenarios || []).filter((scenario: any) =>
             scenario?.type !== 'Selenium Script' && scenario?.nomSenario !== 'Script Selenium (CodeT5)'
-          );
+          ).map((s: any) => ({ ...s, selected: true }));
+          this.allScenariosSelected = true;
           if (project) {
             project.statut = 'TERMINE';
             const generatedCount = this.generatedScenarios ? this.generatedScenarios.length : 0;
@@ -686,7 +702,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (scenarios) => {
-          this.generatedScenarios = scenarios;
+          this.generatedScenarios = (scenarios || []).map((s: any) => ({ ...s, selected: true }));
+          this.allScenariosSelected = true;
           this.isLoading = false;
         },
         error: (err) => {
@@ -856,7 +873,8 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
             scenario?.type !== 'Selenium Script' && scenario?.nomSenario !== 'Script Selenium (CodeT5)'
           );
           // Charger les scénarios dans generatedScenarios pour l'affichage
-          this.generatedScenarios = filteredScripts;
+          this.generatedScenarios = filteredScripts.map((s: any) => ({ ...s, selected: true }));
+          this.allScenariosSelected = true;
 
           // For CODE_FICHIER, if we have a generated script in TestScript, load it
           if (project.specificationType === 'CODE_FICHIER') {
@@ -1366,5 +1384,50 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
     downloadLink.href = linkSource;
     downloadLink.download = fileName;
     downloadLink.click();
+  }
+
+  toggleScenarioSelection(scenario: any): void {
+    scenario.selected = !scenario.selected;
+    this.allScenariosSelected = this.generatedScenarios?.every(s => s.selected) || false;
+  }
+
+  toggleSelectAllScenarios(): void {
+    this.allScenariosSelected = !this.allScenariosSelected;
+    if (this.generatedScenarios) {
+      this.generatedScenarios.forEach(s => s.selected = this.allScenariosSelected);
+    }
+  }
+
+  isAnyScenarioSelected(): boolean {
+    if (this.selectedUserStoryProject?.specificationType !== 'USER_STORY') return true;
+    return this.generatedScenarios?.some(s => s.selected) || false;
+  }
+
+  toggleEditScenario(scenario: any): void {
+    scenario.isEditing = !scenario.isEditing;
+    if (scenario.isEditing) {
+      scenario.tempScenario = scenario.senario;
+    }
+  }
+
+  saveScenarioChanges(scenario: any): void {
+    scenario.senario = scenario.tempScenario;
+    scenario.isEditing = false;
+    
+    // Persister les changements dans le backend
+    if (this.selectedUserStoryProject && this.generatedScenarios) {
+      this.projectService.updateScenarios(this.selectedUserStoryProject.id, this.generatedScenarios).subscribe({
+        next: () => {
+          this.successMessage = 'Scénario modifié et sauvegardé.';
+          setTimeout(() => this.successMessage = '', 3000);
+        },
+        error: (err) => {
+          console.error('Erreur lors de la sauvegarde du scénario:', err);
+          // Même si l'API n'est pas encore là, on affiche un message local
+          this.successMessage = 'Scénario modifié localement.';
+          setTimeout(() => this.successMessage = '', 3000);
+        }
+      });
+    }
   }
 }

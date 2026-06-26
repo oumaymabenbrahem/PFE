@@ -444,11 +444,17 @@
           <thead>
             <tr>
               <th scope="col" style="width: 25%">Type / Titre</th>
-              <th scope="col" style="width: 75%">Scénario (Gherkin)</th>
+              <th scope="col" style="width: 75%; position: relative;">
+                Scénario (Gherkin)
+                <div class="custom-checkbox-header" *ngIf="selectedUserStoryProject?.specificationType === 'USER_STORY'" (click)="toggleSelectAllScenarios()">
+                  <i class="bi" [ngClass]="allScenariosSelected ? 'bi-check-square-fill' : 'bi-square'"></i>
+                  <span class="ms-1">Tout</span>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let scenario of generatedScenarios">
+            <tr *ngFor="let scenario of generatedScenarios" [class.scenario-deselected]="!scenario.selected && selectedUserStoryProject?.specificationType === 'USER_STORY'">
               <td>
                 <span class="badge" [ngClass]="{
                      'bg-success': scenario.type === 'Fonctionnel' || scenario.type === 'Fonctionnelle' || scenario.type === 'Validation',
@@ -462,8 +468,30 @@
                 <p class="mt-2 mb-0 fw-bold title-scenario text-light">{{ scenario.nomSenario }}</p>
                 <small class="scenario-desc d-block mt-1">{{ scenario.description }}</small>
               </td>
-              <td class="gherkin-scenario-cell">
-                <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
+              <td class="gherkin-scenario-cell" style="position: relative;">
+                <div class="scenario-actions" *ngIf="selectedUserStoryProject?.specificationType === 'USER_STORY'">
+                  <!-- Bouton Modifier -->
+                  <button class="btn-scenario-action" (click)="toggleEditScenario(scenario)" [title]="scenario.isEditing ? 'Annuler' : 'Modifier le scénario'">
+                    <i class="bi" [ngClass]="scenario.isEditing ? 'bi-x-circle text-danger' : 'bi-pencil-square text-info'"></i>
+                  </button>
+                  
+                  <!-- Bouton Sauvegarder (si en cours de modification) -->
+                  <button *ngIf="scenario.isEditing" class="btn-scenario-action ms-1" (click)="saveScenarioChanges(scenario)" title="Sauvegarder les modifications">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                  </button>
+
+                  <!-- Checkbox -->
+                  <div class="custom-checkbox ms-1" (click)="toggleScenarioSelection(scenario)">
+                    <i class="bi" [ngClass]="scenario.selected ? 'bi-check-square-fill' : 'bi-square'"></i>
+                  </div>
+                </div>
+
+                <div *ngIf="!scenario.isEditing">
+                  <pre class="gherkin-code"><code>{{ scenario.senario }}</code></pre>
+                </div>
+                <div *ngIf="scenario.isEditing" class="edit-scenario-container mt-4">
+                  <textarea class="form-control gherkin-edit-textarea" [(ngModel)]="scenario.tempScenario" rows="8"></textarea>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -559,10 +587,19 @@
           </div>
           <div class="jira-button-col">
             <button class="btn btn-sm jira-submit-btn" (click)="pushToJira()"
-              [disabled]="isPushingToJira || isLoadingJiraProjects || isLoadingXrayConfig || !xrayConfigured || !jiraProjectKey">
+              [disabled]="isPushingToJira || isLoadingJiraProjects || isLoadingXrayConfig || !xrayConfigured || !jiraProjectKey || !isAnyScenarioSelected()">
               <i class="bi" [ngClass]="isPushingToJira ? 'bi-hourglass-split' : 'bi-cloud-arrow-up'"></i>
               {{ isPushingToJira ? 'Envoi...' : 'Envoyer vers Jira Xray' }}
             </button>
+          </div>
+        </div>
+
+        <div class="mt-3" *ngIf="pushMessage || pushError">
+          <div class="text-success small fw-bold" *ngIf="pushMessage">
+            {{ pushMessage }}
+          </div>
+          <div class="text-danger small fw-bold" *ngIf="pushError">
+            {{ pushError }}
           </div>
         </div>
 
