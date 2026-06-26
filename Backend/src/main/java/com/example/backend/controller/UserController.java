@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,6 +43,25 @@ public class UserController {
 
         userRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable UUID id, @RequestBody java.util.Map<String, Object> updates) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    if (updates.containsKey("nom")) {
+                        user.setNom((String) updates.get("nom"));
+                    }
+                    if (updates.containsKey("email")) {
+                        user.setEmail((String) updates.get("email"));
+                    }
+                    if (updates.containsKey("roles")) {
+                        user.setRoles((List<String>) updates.get("roles"));
+                    }
+                    User updatedUser = userRepository.save(user);
+                    return ResponseEntity.ok(toResponse(updatedUser));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     private UserResponse toResponse(User user) {

@@ -26,4 +26,8 @@ export class UserService {
   deleteUser(userId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${userId}`);
   }
+
+  updateUser(userId: string, userData: any): Observable<PlatformUser> {
+    return this.http.put<PlatformUser>(`${this.apiUrl}/${userId}`, userData);
+  }
 }

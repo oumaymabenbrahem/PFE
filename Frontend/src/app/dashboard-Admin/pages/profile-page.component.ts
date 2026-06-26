@@ -29,14 +29,11 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
           <button type="button" class="icon-action" (click)="loadUsers()" [disabled]="isLoading" aria-label="Rafraîchir">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
-          <button type="button" class="icon-action danger" (click)="openDeleteDialog()" [disabled]="selectedUserIds.size === 0 || isLoading || isDeleting" aria-label="Supprimer la sélection">
+          <button type="button" class="icon-action" (click)="openEditDialog()" [disabled]="selectedUserIds.size !== 1 || isLoading" aria-label="Modifier l'utilisateur" title="Modifier l'utilisateur">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+          <button type="button" class="icon-action danger" (click)="openDeleteDialog()" [disabled]="selectedUserIds.size === 0 || isLoading || isDeleting" aria-label="Supprimer la sélection" title="Supprimer la sélection">
             <i class="bi bi-trash"></i>
-          </button>
-          <button type="button" class="icon-action" [disabled]="selectedUserIds.size === 0" aria-label="Archiver la sélection">
-            <i class="bi bi-archive"></i>
-          </button>
-          <button type="button" class="icon-action" aria-label="Plus d'options">
-            <i class="bi bi-three-dots-vertical"></i>
           </button>
         </div>
 
@@ -133,6 +130,51 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
           <button type="button" class="modal-btn danger" (click)="confirmDeleteSelectedUsers()" [disabled]="isDeleting">
             <span *ngIf="!isDeleting"><i class="bi bi-trash me-2"></i>Supprimer</span>
             <span *ngIf="isDeleting"><i class="bi bi-arrow-repeat spin me-2"></i>Suppression...</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Modal de Modification -->
+      <div class="delete-modal-backdrop" *ngIf="showEditDialog" (click)="cancelEditDialog()" aria-hidden="true"></div>
+      <section class="delete-modal edit-modal" *ngIf="showEditDialog" role="dialog" aria-modal="true" aria-labelledby="editDialogTitle">
+        <div class="delete-modal-header">
+          <div class="delete-modal-icon edit-icon">
+            <i class="bi bi-pencil-square"></i>
+          </div>
+          <div>
+            <h3 id="editDialogTitle">Modifier l'utilisateur</h3>
+            <p>Mettez à jour les informations de {{ editingUser?.nom }}</p>
+          </div>
+        </div>
+
+        <div class="delete-modal-body edit-body">
+          <div class="form-group mb-3">
+            <label class="form-label">Nom complet</label>
+            <input type="text" class="form-control admin-input" [(ngModel)]="editUserData.nom" placeholder="Nom complet">
+          </div>
+          <div class="form-group mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control admin-input" [(ngModel)]="editUserData.email" placeholder="Email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rôle d'accès</label>
+            <div class="role-selector-wrapper">
+              <select class="form-control admin-input role-select" [(ngModel)]="editUserData.primaryRole">
+                <option value="ROLE_USER">Utilisateur</option>
+                <option value="ROLE_ADMIN">Administrateur</option>
+              </select>
+              <i class="bi bi-chevron-down selector-arrow"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="delete-modal-actions">
+          <button type="button" class="modal-btn cancel" (click)="cancelEditDialog()" [disabled]="isSaving">
+            Annuler
+          </button>
+          <button type="button" class="modal-btn save" (click)="confirmSaveUser()" [disabled]="isSaving">
+            <span *ngIf="!isSaving"><i class="bi bi-check-lg me-2"></i>Enregistrer</span>
+            <span *ngIf="isSaving"><i class="bi bi-arrow-repeat spin me-2"></i>Enregistrement...</span>
           </button>
         </div>
       </section>
@@ -340,6 +382,72 @@ import { PlatformUser, UserService } from '../../core/services/user.service';
 
     .spin {
       animation: spin 0.8s linear infinite;
+    }
+
+    .modal-btn.save {
+      background: linear-gradient(135deg, #465fff 0%, #2940d3 100%);
+      color: #fff;
+      box-shadow: 0 14px 28px rgba(70, 95, 255, 0.25);
+    }
+
+    .modal-btn.save:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(70, 95, 255, 0.32);
+    }
+
+    .edit-body {
+      background: #fdfdff;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #475467;
+    }
+
+    .admin-input {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px;
+      border: 1px solid #d0d5dd;
+      border-radius: 10px;
+      background: #fff;
+      color: #101828;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: #465fff;
+        box-shadow: 0 0 0 4px rgba(70, 95, 255, 0.1);
+      }
+    }
+
+    .edit-icon {
+      background: linear-gradient(135deg, rgba(70, 95, 255, 0.14), rgba(70, 95, 255, 0.22));
+      color: #2940d3;
+    }
+
+    .role-selector-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .role-select {
+      appearance: none;
+      cursor: pointer;
+      padding-right: 40px !important;
+    }
+
+    .selector-arrow {
+      position: absolute;
+      right: 14px;
+      pointer-events: none;
+      color: #667085;
+      font-size: 16px;
     }
 
     @keyframes modalPop {
@@ -604,10 +712,19 @@ export class ProfilePageComponent implements OnInit {
   searchTerm = '';
   currentPage = 1;
   showDeleteDialog = false;
+  showEditDialog = false;
   isDeleting = false;
+  isSaving = false;
   readonly pageSize = 8;
   isLoading = false;
   errorMessage = '';
+
+  editingUser: PlatformUser | null = null;
+  editUserData: any = {
+    nom: '',
+    email: '',
+    primaryRole: 'ROLE_USER'
+  };
 
   constructor(private userService: UserService) {}
 
@@ -735,6 +852,58 @@ export class ProfilePageComponent implements OnInit {
         this.errorMessage = 'Impossible de supprimer les utilisateurs sélectionnés.';
         this.isDeleting = false;
         this.showDeleteDialog = false;
+      }
+    });
+  }
+
+  openEditDialog(): void {
+    if (this.selectedUserIds.size !== 1 || this.isLoading) {
+      return;
+    }
+
+    const userId = Array.from(this.selectedUserIds)[0];
+    this.editingUser = this.users.find(u => u.id === userId) || null;
+
+    if (this.editingUser) {
+      this.editUserData = {
+        nom: this.editingUser.nom,
+        email: this.editingUser.email,
+        primaryRole: (this.editingUser.roles || []).includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : 'ROLE_USER'
+      };
+      this.showEditDialog = true;
+    }
+  }
+
+  cancelEditDialog(): void {
+    if (this.isSaving) {
+      return;
+    }
+    this.showEditDialog = false;
+    this.editingUser = null;
+  }
+
+  confirmSaveUser(): void {
+    if (!this.editingUser || this.isSaving) {
+      return;
+    }
+
+    this.isSaving = true;
+    const updatePayload = {
+      nom: this.editUserData.nom,
+      email: this.editUserData.email,
+      roles: [this.editUserData.primaryRole]
+    };
+
+    this.userService.updateUser(this.editingUser.id, updatePayload).subscribe({
+      next: () => {
+        this.isSaving = false;
+        this.showEditDialog = false;
+        this.editingUser = null;
+        this.loadUsers();
+      },
+      error: () => {
+        this.errorMessage = "Erreur lors de la mise à jour de l'utilisateur.";
+        this.isSaving = false;
       }
     });
   }
