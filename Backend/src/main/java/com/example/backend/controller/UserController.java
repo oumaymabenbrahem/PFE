@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.UserResponse;
 import com.example.backend.entity.User;
+import com.example.backend.entity.enums.Role;
 import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
@@ -56,7 +57,11 @@ public class UserController {
                         user.setEmail((String) updates.get("email"));
                     }
                     if (updates.containsKey("roles")) {
-                        user.setRoles((List<String>) updates.get("roles"));
+                        List<String> roleStrings = (List<String>) updates.get("roles");
+                        List<Role> roleEnums = roleStrings.stream()
+                                .map(Role::valueOf)
+                                .toList();
+                        user.setRoles(roleEnums);
                     }
                     User updatedUser = userRepository.save(user);
                     return ResponseEntity.ok(toResponse(updatedUser));
@@ -69,7 +74,7 @@ public class UserController {
                 .id(user.getId())
                 .email(user.getEmail())
                 .nom(user.getNom())
-                .roles(user.getRoles())
+                .roles(user.getRoles().stream().map(Enum::name).toList())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

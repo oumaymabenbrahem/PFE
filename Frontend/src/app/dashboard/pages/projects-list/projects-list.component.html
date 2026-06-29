@@ -1,11 +1,54 @@
 <div class="container-lg py-5 px-4">
-  <!-- Bouton Nouveau Projet -->
-  <div class="row mb-5 justify-content-end">
-    <div class="col-auto">
-      <button class="btn btn-new-project" (click)="createNewProject()" [disabled]="isLoading">
-        <i class="bi bi-plus-circle me-2"></i>
-        Nouvel Espace de test
-      </button>
+  <!-- Actions supérieures (Recherche & Filtres) -->
+  <div class="search-filter-container mb-5">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-4 col-md-5">
+        <div class="search-wrapper">
+          <i class="bi bi-search search-icon"></i>
+          <input 
+            type="text" 
+            class="form-control search-input" 
+            [(ngModel)]="searchQuery" 
+            (input)="onSearch()"
+            placeholder="Rechercher un espace de test...">
+        </div>
+      </div>
+      
+      <div class="col-lg-5 col-md-7">
+        <div class="filter-chips">
+          <button 
+            class="filter-chip" 
+            [class.active]="selectedType === 'ALL'" 
+            (click)="selectType('ALL')">
+            Tous
+          </button>
+          <button 
+            class="filter-chip" 
+            [class.active]="selectedType === 'USER_STORY'" 
+            (click)="selectType('USER_STORY')">
+            User Story
+          </button>
+          <button 
+            class="filter-chip" 
+            [class.active]="selectedType === 'LIEN_APPLICATION'" 
+            (click)="selectType('LIEN_APPLICATION')">
+            Application
+          </button>
+          <button 
+            class="filter-chip" 
+            [class.active]="selectedType === 'CODE_FICHIER'" 
+            (click)="selectType('CODE_FICHIER')">
+            Fichier
+          </button>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-12 text-lg-end">
+        <button class="btn btn-new-project w-100-md" (click)="createNewProject()" [disabled]="isLoading">
+          <i class="bi bi-plus-circle me-2"></i>
+          Nouvel Espace
+        </button>
+      </div>
     </div>
   </div>
 
@@ -21,24 +64,29 @@
   </div>
 
   <!-- Liste de projets vide -->
-  <div class="row" *ngIf="!isLoading && projects.length === 0">
+  <div class="row" *ngIf="!isLoading && getFilteredCount() === 0">
     <div class="col-12">
       <div class="empty-state-card text-center py-5">
         <div class="empty-state-icon">
-          <i class="bi bi-inbox"></i>
+          <i class="bi" [ngClass]="searchQuery || selectedType !== 'ALL' ? 'bi-search' : 'bi-inbox'"></i>
         </div>
-        <h5>Aucun projet trouvé</h5>
-        <p>Vous n'avez pas encore créé de projet.</p>
-        <button class="btn empty-state-cta" (click)="createNewProject()">
+        <h5 *ngIf="!searchQuery && selectedType === 'ALL'">Aucun projet trouvé</h5>
+        <h5 *ngIf="searchQuery || selectedType !== 'ALL'">Aucun résultat</h5>
+        <p *ngIf="!searchQuery && selectedType === 'ALL'">Vous n'avez pas encore créé de projet.</p>
+        <p *ngIf="searchQuery || selectedType !== 'ALL'">Aucun projet ne correspond à votre recherche ou filtre.</p>
+        <button *ngIf="!searchQuery && selectedType === 'ALL'" class="btn empty-state-cta" (click)="createNewProject()">
           <i class="bi bi-plus-circle"></i>
           Créer votre premier projet
+        </button>
+        <button *ngIf="searchQuery || selectedType !== 'ALL'" class="btn btn-outline-primary rounded-pill mt-2" (click)="searchQuery = ''; selectedType = 'ALL'; onSearch()">
+          <i class="bi bi-x-circle me-2"></i>Réinitialiser les filtres
         </button>
       </div>
     </div>
   </div>
 
   <!-- Cartes des projets (Grid Layout) -->
-  <div class="row g-4" *ngIf="!isLoading && projects.length > 0">
+  <div class="row g-4" *ngIf="!isLoading && getFilteredCount() > 0">
     <div class="col-lg-4 col-md-6 col-sm-12" *ngFor="let project of getPaginatedProjects()">
       <div class="project-card">
         <!-- En-tête de la carte -->
@@ -196,10 +244,10 @@
   </div>
 
   <!-- Pagination -->
-  <div class="row mt-4 mb-5" *ngIf="!isLoading && projects.length > itemsPerPage">
+  <div class="row mt-4 mb-5" *ngIf="!isLoading && getFilteredCount() > itemsPerPage">
     <div class="col-12 d-flex justify-content-center">
       <app-pagination 
-        [totalPages]="Math.ceil(projects.length / itemsPerPage)" 
+        [totalPages]="Math.ceil(getFilteredCount() / itemsPerPage)" 
         [currentPage]="currentPage"
         (pageChange)="onPageChange($event)">
       </app-pagination>
@@ -613,8 +661,6 @@
 
       
     </div>
-  </div>
-</div>
 
 <!-- MODALE DE CONFIRMATION DE SUPPRESSION -->
 <div class="delete-confirmation-overlay" *ngIf="showDeleteConfirmation" (click)="closeDeleteConfirmation()">

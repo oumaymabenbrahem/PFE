@@ -101,9 +101,11 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   isUpdatingProject: boolean = false;
   selectedFile: File | null = null;
   
-  // Pagination
+  // Pagination and Filtering
   currentPage = 1;
   itemsPerPage = 15;
+  searchQuery = '';
+  selectedType = 'ALL';
   Math = Math; // To use Math.ceil in template
   
   private readonly executionMetricsStoragePrefix = 'execution_metrics_';
@@ -549,8 +551,39 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
   }
 
   getPaginatedProjects(): ProjectResponse[] {
+    const filtered = this.projects.filter(project => {
+      const matchesSearch = !this.searchQuery || 
+        project.nom.toLowerCase().includes(this.searchQuery.toLowerCase());
+      
+      const matchesType = this.selectedType === 'ALL' || 
+        project.specificationType === this.selectedType;
+        
+      return matchesSearch && matchesType;
+    });
+
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    return this.projects.slice(startIndex, startIndex + this.itemsPerPage);
+    return filtered.slice(startIndex, startIndex + this.itemsPerPage);
+  }
+
+  getFilteredCount(): number {
+    return this.projects.filter(project => {
+      const matchesSearch = !this.searchQuery || 
+        project.nom.toLowerCase().includes(this.searchQuery.toLowerCase());
+      
+      const matchesType = this.selectedType === 'ALL' || 
+        project.specificationType === this.selectedType;
+        
+      return matchesSearch && matchesType;
+    }).length;
+  }
+
+  onSearch(): void {
+    this.currentPage = 1;
+  }
+
+  selectType(type: string): void {
+    this.selectedType = type;
+    this.currentPage = 1;
   }
   onGenerateTests(projectId: string): void {
     const project = this.projects.find(p => p.id === projectId);

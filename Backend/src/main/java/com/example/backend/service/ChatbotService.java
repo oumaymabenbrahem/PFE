@@ -2,8 +2,9 @@ package com.example.backend.service;
 
 import com.example.backend.dto.ChatbotMessageRequest;
 import com.example.backend.dto.ChatbotMessageResponse;
-import com.example.backend.entity.ChatbotMessage;
+import com.example.backend.entity.User;
 import com.example.backend.repository.ChatbotMessageRepository;
+import com.example.backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,9 @@ public class ChatbotService {
 
     @Autowired
     private ChatbotMessageRepository chatbotMessageRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -191,8 +195,8 @@ public class ChatbotService {
                 return false;
             }
 
-            if (!message.getUserId().equals(userId)) {
-                log.warn("User {} attempted to delete message of user {}", userId, message.getUserId());
+            if (!message.getUser().getId().equals(userId)) {
+                log.warn("User {} attempted to delete message of user {}", userId, message.getUser().getId());
                 return false;
             }
 
@@ -225,8 +229,11 @@ public class ChatbotService {
     private ChatbotMessage saveChatMessage(UUID userId, String userMessage, String botResponse,
                                           String messageType, String contextData) {
         try {
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
             ChatbotMessage message = ChatbotMessage.builder()
-                .userId(userId)
+                .user(user)
                 .userMessage(userMessage)
                 .botResponse(botResponse)
                 .messageType(messageType)

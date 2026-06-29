@@ -7,6 +7,7 @@ import com.example.backend.dto.UpdateUserRequest;
 import com.example.backend.entity.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.CustomUserDetails;
+import com.example.backend.entity.enums.Role;
 import com.example.backend.security.JwtUtil;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -79,7 +80,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .nom(request.getNom())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .roles(Arrays.asList("ROLE_USER"))
+                .roles(Arrays.asList(Role.ROLE_USER))
                 .build();
 
         userRepository.save(user);
@@ -160,7 +161,7 @@ public class AuthService {
                         .email(email)
                         .nom(name)
                         .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
-                        .roles(Arrays.asList("ROLE_USER"))
+                        .roles(Arrays.asList(Role.ROLE_USER))
                         .build();
                 userRepository.save(user);
                 log.info("Nouvel utilisateur Google créé: {}", email);
@@ -210,7 +211,7 @@ public class AuthService {
         UserDetails userDetails = new CustomUserDetails(
                 user.getEmail(),
                 user.getPassword(),
-                Arrays.asList(new SimpleGrantedAuthority(user.getRoles().get(0))),
+                Arrays.asList(new SimpleGrantedAuthority(user.getRoles().get(0).name())),
                 user.getId()
         );
         String token = jwtUtil.generateToken(userDetails);
@@ -321,7 +322,7 @@ public class AuthService {
                         .email(email)
                         .nom(name)
                         .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
-                        .roles(Arrays.asList("ROLE_USER"))
+                        .roles(Arrays.asList(Role.ROLE_USER))
                         .build();
                 userRepository.save(user);
                 log.info("Nouvel utilisateur GitHub créé: {}", email);
@@ -353,7 +354,7 @@ public class AuthService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .nom(user.getNom())
-                .roles(user.getRoles())
+                .roles(user.getRoles().stream().map(Enum::name).toList())
                 .build();
 
         return AuthResponse.builder()

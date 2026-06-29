@@ -78,6 +78,7 @@ public class PasswordResetService {
 
         // Créer et sauvegarder le token
         PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(userOpt.get())
                 .email(email)
                 .otpCode(otpCode)
                 .expiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes))

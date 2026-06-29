@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
 import java.util.List;
 import java.util.UUID;
+import com.example.backend.entity.enums.Role;
 import jakarta.persistence.Convert;
 import com.example.backend.security.StringCryptoConverter;
 
@@ -33,8 +34,9 @@ public class User {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private List<String> roles;
+    private List<Role> roles;
 
     @Column(nullable = false, updatable = false)
     private Long createdAt;
