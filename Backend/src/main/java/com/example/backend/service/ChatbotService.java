@@ -2,6 +2,7 @@ package com.example.backend.service;
 
 import com.example.backend.dto.ChatbotMessageRequest;
 import com.example.backend.dto.ChatbotMessageResponse;
+import com.example.backend.entity.ChatbotMessage;
 import com.example.backend.entity.User;
 import com.example.backend.repository.ChatbotMessageRepository;
 import com.example.backend.repository.UserRepository;
