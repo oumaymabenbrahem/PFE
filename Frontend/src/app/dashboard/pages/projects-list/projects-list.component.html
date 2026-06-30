@@ -222,7 +222,7 @@
           </button>
 
           <!-- Bouton Tableau de bord (AFFICHE pour LIEN_APPLICATION et CODE_FICHIER) -->
-          <button *ngIf="project.statut === 'TERMINE' && (project.specificationType === 'LIEN_APPLICATION' || project.specificationType === 'CODE_FICHIER')" class="btn btn-sm btn-outline-info ms-1" (click)="openWebTestingDashboard(project)"
+          <button *ngIf="project.statut !== 'EN_ATTENTE' && (project.specificationType === 'LIEN_APPLICATION' || project.specificationType === 'CODE_FICHIER')" class="btn btn-sm btn-outline-info ms-1" (click)="openWebTestingDashboard(project)"
             title="Ouvrir le tableau de bord des tests">
             <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
           </button>
@@ -658,9 +658,9 @@
         </div>
 
       </div>
-
-      
     </div>
+  </div>
+</div>
 
 <!-- MODALE DE CONFIRMATION DE SUPPRESSION -->
 <div class="delete-confirmation-overlay" *ngIf="showDeleteConfirmation" (click)="closeDeleteConfirmation()">

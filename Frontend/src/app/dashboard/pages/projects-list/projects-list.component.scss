@@ -678,7 +678,9 @@
   align-items: flex-start;
   overflow-y: hidden;
   padding: 16px;
-  z-index: 1050; // Au-dessus du reste
+  z-index: 9999; // Toujours au-dessus de tout le reste
+  visibility: visible !important;
+  opacity: 1 !important;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -2540,7 +2542,9 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
-  z-index: 1050;
+  z-index: 9999 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   display: flex;
   justify-content: center;
   align-items: center;

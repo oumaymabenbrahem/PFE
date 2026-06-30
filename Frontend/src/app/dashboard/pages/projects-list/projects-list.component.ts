@@ -599,11 +599,21 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Pour LIEN_APPLICATION: ouvrir le dashboard immédiatement (pour voir le crawling)
-    // Pour CODE_FICHIER: ouvrir APRES la génération des tests
-    if (project?.specificationType === 'LIEN_APPLICATION') {
-      this.openWebTestingDashboard(project);
-    }
+    // S'assurer que les états sont cleans et forcer un cycle de détection
+    this.showWebTestingDashboard = false;
+    this.selectedUserStoryProject = null;
+    this.selectedProjectForDetails = null; // Fermer les détails s'ils étaient ouverts
+
+    setTimeout(() => {
+        if (!project) return;
+
+        const type = project.specificationType?.toUpperCase() || '';
+        if (type === 'LIEN_APPLICATION' || type === 'CODE_FICHIER') {
+          this.openWebTestingDashboard(project);
+        } else if (type === 'USER_STORY') {
+          this.openUserStoryModal(project);
+        }
+    }, 50);
 
     this.projectService.generateTests(projectId)
       .pipe(takeUntil(this.destroy$))
@@ -622,15 +632,16 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
           }
           this.successMessage = `✅ Scénarios générés avec succès! Exécution Selenium...`;
 
-          // Pour CODE_FICHIER: ouvrir le dashboard MAINTENANT que les tests sont prêts
-          if (project?.specificationType === 'CODE_FICHIER' && !this.showWebTestingDashboard) {
-            this.openWebTestingDashboard(project);
+          if (project?.specificationType === 'CODE_FICHIER') {
             // Mettre le dashboard directement en état "terminé" avec les tests chargés
             this.pipelineStatus = 'completed';
             this.pipelineCurrentStep = 5;
             this.pipelineProgress = 100;
             this.scenariosGenerated = this.generatedScenarios?.length || 0;
             this.elementsDetected = response.elementsCount !== undefined ? response.elementsCount : '-';
+            
+            // Re-hydrater l'analyse si on est sur la page
+            this.analyzeProjectFile();
           }
 
           if (this.showWebTestingDashboard && project && project.specificationType !== 'CODE_FICHIER') {
@@ -792,6 +803,7 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
    * Ouvre la modale des détails d'une User Story
    */
   openUserStoryModal(project: ProjectResponse): void {
+    this.showWebTestingDashboard = false; // Fermer le dashboard si ouvert
     this.selectedUserStoryProject = project;
     this.jiraProjectKey = this.jiraProjects.length === 1 ? this.jiraProjects[0].key : '';
     this.isJiraProjectDropdownOpen = false;
@@ -831,6 +843,9 @@ export class ProjectsListComponent implements OnInit, OnDestroy {
 
   // --- Web Testing Dashboard Methods ---
   openWebTestingDashboard(project: ProjectResponse): void {
+    console.log('[DEBUG] Opening Dashboard for:', project.nom, project.specificationType);
+    this.selectedUserStoryProject = null; // Fermer l'autre modale au cas où
+    this.selectedProjectForDetails = null; // Fermer les détails aussi
     this.webTestingProject = project;
     this.showWebTestingDashboard = true;
     this.executionPdfReport = undefined;
